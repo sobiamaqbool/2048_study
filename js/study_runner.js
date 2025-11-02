@@ -91,7 +91,6 @@ document.addEventListener("DOMContentLoaded", function () {
   document.head.appendChild(s);
 });
 
-/* ---- IMPORTANT: leading semicolon guards against ASI issues if a previous file ends with an IIFE ---- */
 ;(function () {
   var L = window.StudyLogger;
   L.setContext({ participant_id: anonId(), mode_id: "init" });
@@ -735,7 +734,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var rows = L.moveRowsForExport().filter(function(r){ return r.mode_id===id; });
                 var csv  = L.toCSVMoves(rows);
                 var name = buildName(output.filename_pattern, meta, id, "moves");
-                L.download(name, csv);
+                // L.download(name, csv);  // <- disabled: no browser auto-download
               }
               loop(i+1);
             });
@@ -747,7 +746,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var rows = L.testRowsForExport().filter(function(r){ return r.mode_id===id; });
                 var csv  = L.toCSVTests(rows);
                 var name = buildName(output.tests_filename_pattern, meta, id, "tests");
-                L.download(name, csv);
+                // L.download(name, csv);  // <- disabled: no browser auto-download
               }
               loop(i+1);
             });
