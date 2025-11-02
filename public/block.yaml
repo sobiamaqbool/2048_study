@@ -126,7 +126,7 @@ sequence:
   - tests_after_hard
 
 output:
-  autosave_csv_on_block_end: true
+  autosave_csv_on_block_end: false
   filename_pattern: "{study_id}__{block_id}__{kind}__{ts}.csv"
   tests_filename_pattern: "{study_id}__{block_id}__{kind}__{ts}.csv"
 
