@@ -1,173 +1,207 @@
-// study_runner.js — v=2956
-// Separate CSV per step (moves after play; tests after tests).
-// Reliable move logging via inputManager.on("move").
-// Oddball awareness Yes/No logs to tests CSV.
-// Dual YAML path loader. Overlay + timer included.
+// study_runner.js — v=2984 (medium awareness carry-over fix)
+// Medium: goal=512, no timer + two flashes (~15s, ~65s).
+// Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2956");
+console.log("study_runner loaded v=2986");
 
-document.addEventListener("DOMContentLoaded", () => {
-  const s = document.createElement("style");
-  s.textContent = `
-    .game-message { pointer-events: none !important; }
-    .tile-inner.flash-brief {
-      filter: brightness(2.3) saturate(1.5);
-      box-shadow: 0 0 15px 6px rgba(255,255,255,0.8);
-      transition: all 0.25s ease;
-    }
-    #study-overlay {
-      background: rgba(2,6,23,0.78)!important;
-      backdrop-filter: blur(6px);
-      color: #e5e7eb!important;
-      display: none;
-      position: fixed; inset: 0; z-index: 100000;
-      place-items: center; padding: 24px;
-    }
-    #study-title { font:700 22px/1.2 system-ui; letter-spacing:.2px; }
-    #study-body  { font:500 14px/1.35 system-ui; opacity:.95; margin-top:6px; }
-    #study-form { margin-top: 14px; max-width: 520px; width: 100%;
-      background: rgba(15,23,42,.9); border:1px solid #334155;
-      border-radius: 12px; padding: 14px; }
-    #study-form .q { margin: 10px 0 14px; }
-    #study-form label { display:block; font:600 13px system-ui; margin-bottom:6px; }
-    #study-form .opts { display:flex; flex-wrap:wrap; gap:8px; }
-    #study-form .optbtn { border:1px solid #475569; border-radius:10px; padding:6px 10px; font:600 13px system-ui; background:#0b1220; cursor:pointer; color:#fff; }
-    #study-form .optbtn.active { background:#1f2a44; border-color:#64748b; }
-    #study-form .rangewrap { display:flex; align-items:center; gap:10px; }
-    #study-form input[type=range] { flex:1; }
-    #study-submit { margin-top: 8px; width: 100%; padding: 10px 12px;
-      border-radius: 10px; border: 1px solid #4663d0; background:#3452c8; color:#fff; font:700 14px system-ui; cursor:pointer; }
-    #study-timer {
-      position: fixed; top: 14px; right: 14px; z-index: 10000;
-      background: #0f172a; color: #e5e7eb; border: 1px solid #334155;
-      border-radius: 10px; padding: 6px 10px; font: 600 13px system-ui;
-      box-shadow: 0 6px 18px rgba(0,0,0,.35); display: none;
-    }
-  `;
+document.addEventListener("DOMContentLoaded", function () {
+  var s = document.createElement("style");
+  s.textContent = [
+    ".game-message { pointer-events: none !important; }",
+    ".tile-inner.flash-brief{filter:brightness(2.3) saturate(1.5);box-shadow:0 0 15px 6px rgba(255,255,255,0.8);transition:all .25s ease;}",
+
+    /* ===== Theme (#402F1D) ===== */
+    ":root{--th:#402F1D;--th95:rgba(64,47,29,.95);--thBorder:#2F2114;--thHover:#5A4029;--thShadow:rgba(64,47,29,.4);--thText:#fff;}",
+
+    /* Overlay */
+    "#study-overlay{background:rgba(64,47,29,.88)!important;backdrop-filter:blur(6px);color:#fff!important;display:none;position:fixed;inset:0;z-index:100000;place-items:center;padding:24px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45);}",
+    "#study-title{font:800 24px/1.2 system-ui;letter-spacing:.2px;}",
+    "#study-body{font:500 14px/1.4 system-ui;opacity:.95;margin-top:6px;}",
+    "#study-form{margin-top:14px;max-width:520px;width:100%;background:var(--th95);border:1px solid var(--thBorder);border-radius:12px;padding:14px;}",
+    "#study-form .q{margin:10px 0 14px;}",
+    "#study-form label{display:block;font:600 13px system-ui;margin-bottom:6px;color:var(--thText);}",
+    "#study-form .opts{display:flex;flex-wrap:wrap;gap:8px;}",
+    "#study-form .optbtn{border:1px solid var(--thBorder);border-radius:10px;padding:6px 10px;font:600 13px system-ui;background:var(--th);cursor:pointer;color:var(--thText);}",
+    "#study-form .optbtn:hover{background:var(--thHover);}",
+    "#study-form .optbtn.active{background:var(--thHover);border-color:#D9CBB8;}",
+    "#study-form .rangewrap{display:flex;align-items:center;gap:10px;}",
+    "#study-form input[type=range]{flex:1;}",
+    "#study-submit{margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--thBorder);background:var(--th);color:var(--thText);font:700 14px system-ui;cursor:pointer;}",
+    "#study-submit:hover{background:var(--thHover);}",
+
+    /* Badges */
+    "#study-timer{display:none;}",
+    "#study-goal{display:none;pointer-events:none;}",
+    ".game-container{position:relative;}",
+    "#study-goal.anchored, #study-timer.anchored{position:absolute; top:-36px; z-index:1000; font:600 13px system-ui; background:var(--th); color:var(--thText); border:1px solid var(--thBorder); border-radius:10px; padding:6px 10px; box-shadow:0 6px 18px var(--thShadow);}",
+    "#study-goal.anchored{ left:8px; }",
+    "#study-timer.anchored{ right:8px; }",
+    "#study-goal.pulse{animation:goalPulse .9s ease-out 1;}",
+    "@keyframes goalPulse{0%{transform:scale(0.92);box-shadow:0 0 0 0 rgba(217,203,184,.5);}70%{transform:scale(1);box-shadow:0 0 0 12px rgba(217,203,184,0);}100%{transform:scale(1);box-shadow:none;}}",
+
+    /* Awareness mini-card */
+    "#yn-card{display:flex;flex-direction:column;gap:12px;align-items:center;min-width:280px;max-width:420px;background:#4B3826;border:1px solid #2F2114;border-radius:14px;padding:16px 18px;box-shadow:0 16px 40px rgba(0,0,0,.35);}",
+    "#yn-title{font:800 20px/1.2 system-ui;color:#fff;text-align:center;}",
+    "#yn-sub{font:500 14px/1.4 system-ui;color:#f3eee8;opacity:.95;text-align:center;}",
+    "#yn-actions{display:flex;gap:10px;justify-content:center;width:100%;}",
+    ".yn-btn{flex:1;min-width:110px;padding:10px 14px;border-radius:12px;cursor:pointer;border:1px solid #D3C5B6;background:#F7F3EE;color:#1C1917;font:700 14px system-ui;box-shadow:0 3px 10px rgba(0,0,0,.12);transition:transform .06s ease,background .15s;}",
+    ".yn-btn:hover{background:#E8DFD6;}",
+    ".yn-btn:active{transform:translateY(1px);}",
+    ".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}"
+  ].join("");
   document.head.appendChild(s);
 });
 
-(async function () {
-  const L = window.StudyLogger;   // logger
-  const Tests = window.TestsUI;   // tests UI
+/* ---- IMPORTANT: leading semicolon guards against ASI issues if a previous file ends with an IIFE ---- */
+;(function () {
+  var L = window.StudyLogger;
+  L.setContext({ participant_id: "P001", mode_id: "init" });
+  var Tests = window.TestsUI;
 
   // ---------- Overlay ----------
-  const overlay = document.getElementById("study-overlay");
-  const titleEl = document.getElementById("study-title");
-  const bodyEl  = document.getElementById("study-body");
-  const show = (t, s = "") => { titleEl.textContent = t; bodyEl.textContent = s; overlay.style.display = "grid"; };
-  const hide = () => { overlay.style.display = "none"; };
+  var overlay = document.getElementById("study-overlay");
+  var titleEl = document.getElementById("study-title");
+  var bodyEl  = document.getElementById("study-body");
+  function show(t, s){ titleEl.textContent = t; bodyEl.textContent = s || ""; overlay.style.display = "grid"; }
+  function hide(){ overlay.style.display = "none"; }
 
   // ---------- YAML ----------
-  async function loadConfigSmart() {
-    if (!window.jsyaml) {
-      await new Promise((res, rej) => {
-        const s = document.createElement("script");
+  function loadConfigSmart() {
+    return new Promise(function(resolve, reject){
+      function go(){ 
+        var urls = ["public/block.yaml","/public/block.yaml","block.yaml","/block.yaml"];
+        (function next(i){
+          if (i>=urls.length) { reject(new Error("Could not find block.yaml")); return; }
+          fetch(urls[i], { cache: "no-cache" }).then(function(r){
+            if (!r.ok) throw new Error("HTTP "+r.status);
+            return r.text();
+          }).then(function(txt){
+            resolve(window.jsyaml.load(txt));
+          }).catch(function(e){
+            console.warn("YAML load failed:", urls[i], e.message);
+            next(i+1);
+          });
+        })(0);
+      }
+      if (!window.jsyaml) {
+        var s = document.createElement("script");
         s.src = "https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js";
-        s.onload = res; s.onerror = rej; document.head.appendChild(s);
-      });
-    }
-    const urls = ["public/block.yaml","/public/block.yaml","block.yaml","/block.yaml"];
-    for (const u of urls) {
-      try {
-        const r = await fetch(u, { cache: "no-cache" });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return window.jsyaml.load(await r.text());
-      } catch (e) { console.warn("YAML load failed:", u, e.message); }
-    }
-    throw new Error("Could not find block.yaml");
+        s.onload = go;
+        s.onerror = function(){ reject(new Error("js-yaml load error")); };
+        document.head.appendChild(s);
+      } else { go(); }
+    });
   }
 
   // ---------- DOM reset ----------
-  function wipeGameDOM(size = 4) {
-    const gc = document.querySelector(".game-container"); if (!gc) return;
-    const rows = Array.from({ length: size }, () =>
-      `<div class="grid-row">${Array.from({ length: size }, () => `<div class="grid-cell"></div>`).join("")}</div>`
-    ).join("");
-    gc.innerHTML = `
-      <div class="heading">
-        <a class="restart-button" style="display:none"></a>
-        <a class="retry-button" style="display:none"></a>
-        <a class="keep-playing-button" style="display:none"></a>
-      </div>
-      <div class="game-message"><p></p><div class="lower">
-        <a class="keep-playing-button" style="display:none"></a>
-        <a class="retry-button" style="display:none"></a>
-      </div></div>
-      <div class="grid-container">${rows}</div>
-      <div class="tile-container"></div>
-    `;
+  function wipeGameDOM(size) {
+    size = size || 4;
+    var gc = document.querySelector(".game-container"); if (!gc) return;
+    var rows = Array.from({ length: size }, function(){
+      return '<div class="grid-row">' + Array.from({ length: size }, function(){ return '<div class="grid-cell"></div>'; }).join("") + "</div>";
+    }).join("");
+    gc.innerHTML = ''
+      + '<div class="heading">'
+      +   '<a class="restart-button" style="display:none"></a>'
+      +   '<a class="retry-button" style="display:none"></a>'
+      +   '<a class="keep-playing-button" style="display:none"></a>'
+      + '</div>'
+      + '<div class="game-message"><p></p><div class="lower">'
+      +   '<a class="keep-playing-button" style="display:none"></a>'
+      +   '<a class="retry-button" style="display:none"></a>'
+      + '</div></div>'
+      + '<div class="grid-container">' + rows + '</div>'
+      + '<div class="tile-container"></div>';
   }
 
-  // ---------- Timer ----------
+  // ---------- Timer/Goal badges ----------
   function getTimerEl() {
-    let el = document.getElementById("study-timer");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "study-timer";
-      document.body.appendChild(el);
-    }
+    var el = document.getElementById("study-timer");
+    if (!el) { el = document.createElement("div"); el.id = "study-timer"; document.body.appendChild(el); }
     return el;
   }
+  function getGoalEl() {
+    var el = document.getElementById("study-goal");
+    if (!el) { el = document.createElement("div"); el.id = "study-goal"; document.body.appendChild(el); }
+    return el;
+  }
+  function anchorGoalBadgeToBoard() {
+    var g = getGoalEl();
+    var gc = document.querySelector(".game-container");
+    if (gc && g.parentNode !== gc) gc.appendChild(g);
+    g.classList.add("anchored");
+  }
+  function anchorTimerBadgeToBoard() {
+    var t = getTimerEl();
+    var gc = document.querySelector(".game-container");
+    if (gc && t.parentNode !== gc) gc.appendChild(t);
+    t.classList.add("anchored");
+  }
   function startCountdown(seconds, onEnd) {
-    if (!seconds) return { stop() {}, running: false };
-    const el = getTimerEl();
-    const fmt = s => {
-      const m = Math.floor(s / 60), ss = String(Math.max(0, s % 60)).padStart(2, "0");
-      return `${m}:${ss}`;
-    };
-    let t = seconds;
-    el.textContent = `Time: ${fmt(t)}`;
+    if (!seconds) return { stop: function(){}, running: false };
+    var el = getTimerEl();
+    function fmt(s){ var m = Math.floor(s/60), ss = String(Math.max(0, s%60)).padStart(2,"0"); return m + ":" + ss; }
+    var t = seconds;
+    el.textContent = "Time: " + fmt(t);
     el.style.display = "block";
-    const id = setInterval(() => {
-      t -= 1; el.textContent = `Time: ${fmt(t)}`;
-      if (t <= 0) { clearInterval(id); el.style.display = "none"; onEnd?.(); }
+    var id = setInterval(function(){
+      t -= 1; el.textContent = "Time: " + fmt(t);
+      if (t <= 0) { clearInterval(id); el.style.display = "none"; if (typeof onEnd === "function") onEnd(); }
     }, 1000);
-    const stop = () => { clearInterval(id); el.style.display = "none"; };
-    return { stop, running: true };
+    return { stop: function(){ clearInterval(id); el.style.display = "none"; }, running: true };
+  }
+  function showGoalBadge(goalTile){
+    var g = getGoalEl();
+    g.textContent = "Goal: " + goalTile;
+    g.style.display = "block";
+    g.classList.remove("pulse"); void g.offsetWidth; g.classList.add("pulse");
+  }
+  function hideGoalBadge(){
+    var g = document.getElementById("study-goal");
+    if (g) g.style.display = "none";
   }
 
   // ---------- Prefill / weights ----------
   function pickWeighted(obj){
-    const entries = Object.entries(obj).map(([k,v])=>[+k,+v]);
-    const sum = entries.reduce((a,[,w])=>a+w,0)||1;
-    let r=Math.random()*sum;
-    for (const [val,w] of entries){ if ((r-=w)<=0) return Math.floor(val); }
-    return Math.floor(entries[0]?.[0]??2);
+    var entries = Object.keys(obj).map(function(k){ return [Number(k), Number(obj[k])]; });
+    var sum = entries.reduce(function(a, e){ return a + e[1]; }, 0) || 1;
+    var r = Math.random()*sum, i;
+    for (i=0;i<entries.length;i++){ r -= entries[i][1]; if (r <= 0) return Math.floor(entries[i][0]); }
+    return Math.floor(entries[0] ? entries[0][0] : 2);
   }
   function prefillBoard(gm, spec){
-    if (!spec?.prefill) return;
-    const ratio = Math.max(0, Math.min(1, Number(spec.prefill.fill_ratio ?? 0)));
-    let need = Math.round(gm.size*gm.size*ratio);
-    const weights = spec.prefill.values || {"2":1,"4":1};
+    if (!spec || !spec.prefill) return;
+    var ratio = Math.max(0, Math.min(1, Number(spec.prefill.fill_ratio || 0)));
+    var need = Math.round(gm.size*gm.size*ratio);
+    var weights = spec.prefill.values || {"2":1,"4":1};
     while (need-- > 0 && gm.grid.availableCells().length){
-      const cell = gm.grid.randomAvailableCell();
+      var cell = gm.grid.randomAvailableCell();
       gm.grid.insertTile(new Tile(cell, pickWeighted(weights)));
     }
   }
 
   // ---------- Optional start grid ----------
   function applyStartGrid(gm, spec){
-    if (!spec?.grid) return false;
+    if (!spec || !spec.grid) return false;
 
     gm.grid = new Grid(gm.size);
 
-    let maxVal = -Infinity, maxPos = null;
-    for (let y = 0; y < spec.grid.length; y++){
-      for (let x = 0; x < spec.grid[y].length; x++){
-        const v = Number(spec.grid[y][x]) || 0;
+    var maxVal = -Infinity, maxPos = null, y, x;
+    for (y=0; y<spec.grid.length; y++){
+      for (x=0; x<spec.grid[y].length; x++){
+        var v = Number(spec.grid[y][x]) || 0;
         if (v > 0) {
-          gm.grid.insertTile(new Tile({ x, y }, v));
-          if (v > maxVal){ maxVal = v; maxPos = { x, y }; }
+          gm.grid.insertTile(new Tile({ x: x, y: y }, v));
+          if (v > maxVal){ maxVal = v; maxPos = { x: x, y: y }; }
         }
       }
     }
 
     if (Array.isArray(spec.high_tile_randomize) && spec.high_tile_randomize.length && maxPos){
-      const choices = spec.high_tile_randomize.map(Number).filter(n => n > 0);
+      var choices = spec.high_tile_randomize.map(Number).filter(function(n){ return n>0; });
       if (choices.length){
-        const pick = choices[Math.floor(Math.random()*choices.length)];
-        const t = gm.grid.cells[maxPos.x][maxPos.y];
+        var pick = choices[Math.floor(Math.random()*choices.length)];
+        var t = gm.grid.cells[maxPos.x][maxPos.y];
         if (t) t.value = pick;
       }
     }
@@ -179,137 +213,103 @@ document.addEventListener("DOMContentLoaded", () => {
     return true;
   }
 
-  // ---------- Metrics (spare helpers if needed later) ----------
-  function computeSmoothness(grid){
-    let s=0, cells=grid.cells;
-    for (let x=0;x<cells.length;x++) for (let y=0;y<cells[x].length;y++){
-      const c=cells[x][y]; if (!c) continue;
-      if (x+1<cells.length && cells[x+1][y]) s+=Math.abs(c.value-cells[x+1][y].value);
-      if (y+1<cells[x].length && cells[x][y+1]) s+=Math.abs(c.value-cells[x][y+1].value);
-    }
-    return s;
-  }
-  function maxTileInfo(grid){
-    let max=0,pos=""; grid.eachCell((x,y,c)=>{ if(c&&c.value>=max){max=c.value;pos=`${x},${y}`;} });
-    return { max, pos };
-  }
-
-  // ---------- Oddball visuals ----------
-  function getRandomTileEl(){
-    const inners=Array.from(document.querySelectorAll(".tile .tile-inner"));
-    return inners.length? inners[Math.floor(Math.random()*inners.length)] : null;
-  }
-  function flashTileEl(el, ms=600){ if(!el) return; el.classList.add("flash-brief"); setTimeout(()=>el.classList.remove("flash-brief"), ms); }
-
   // ---------- NoStorage ----------
   function NoStorageManager() {}
-  NoStorageManager.prototype.getBestScore = () => 0;
-  NoStorageManager.prototype.setBestScore = _ => {};  
-  NoStorageManager.prototype.getGameState = () => null;
-  NoStorageManager.prototype.setGameState = _ => {};
-  NoStorageManager.prototype.clearGameState = _ => {};
+  NoStorageManager.prototype.getBestScore = function(){ return 0; };
+  NoStorageManager.prototype.setBestScore = function(_) {};
+  NoStorageManager.prototype.getGameState = function(){ return null; };
+  NoStorageManager.prototype.setGameState = function(_) {};
+  NoStorageManager.prototype.clearGameState = function(_) {};
 
   // ---------- Inline questions ----------
   function askPostQuestions(block){
-    const qs = block?.post_questions;
+    var qs = block && block.post_questions;
     if (!qs || !Array.isArray(qs) || !qs.length) return Promise.resolve();
 
-    // Try TestsUI if capable; else built-in form.
     if (Tests && typeof Tests.runTests === "function") {
       show("Quick questions", "Answer, then continue.");
-      return Tests.runTests(qs, `${block.id}__post`, block.tests_options || null)
-        .then(res => {
-          const write = (id, val) => L.logTest(block.id, String(id), "post_question", val);
-
+      return Tests.runTests(qs, String(block.id)+"__post", block.tests_options || null)
+        .then(function(res){
+          function write(id, val){ L.logTest(block.id, String(id), "post_question", val); }
           if (res == null) return;
           if (Array.isArray(res)) {
-            res.forEach((item, i) => {
+            res.forEach(function(item, i){
               if (item && typeof item === "object") {
-                const id  = item.id ?? item.itemId ?? item.key ?? i;
-                const val = item.response ?? item.value ?? item.answer ?? item.score ?? JSON.stringify(item);
+                var id  = item.id != null ? item.id : (item.itemId != null ? item.itemId : (item.key != null ? item.key : i));
+                var val = item.response != null ? item.response :
+                          (item.value != null ? item.value :
+                          (item.answer != null ? item.answer :
+                          (item.score != null ? item.score : JSON.stringify(item))));
                 write(id, val);
-              } else {
-                write(i, item);
-              }
+              } else { write(i, item); }
             });
           } else if (typeof res === "object") {
-            Object.entries(res).forEach(([k, v]) => write(k, v));
+            Object.keys(res).forEach(function(k){ write(k, res[k]); });
           } else {
             write("result", res);
           }
         })
-        .catch(e => console.error("Post questions error:", e))
-        .finally(() => hide());
+        .catch(function(e){ console.error("Post questions error:", e); })
+        .finally(function(){ hide(); });
     }
 
-    // Built-in overlay form
-    return new Promise((resolve) => {
+    return new Promise(function(resolve){
       show("Quick questions", "Answer, then continue.");
-      let form = document.getElementById("study-form");
-      if (!form) {
-        form = document.createElement("div");
-        form.id = "study-form";
-        overlay.appendChild(form);
-      }
+      var form = document.getElementById("study-form");
+      if (!form) { form = document.createElement("div"); form.id = "study-form"; overlay.appendChild(form); }
       form.innerHTML = "";
 
-      const answers = {};
-      qs.forEach((q, idx) => {
-        const qWrap = document.createElement("div"); qWrap.className = "q";
-        const lbl = document.createElement("label");
-        lbl.textContent = q.text || `Question ${idx+1}`;
+      var answers = {};
+      qs.forEach(function(q, idx){
+        var qWrap = document.createElement("div"); qWrap.className = "q";
+        var lbl = document.createElement("label");
+        lbl.textContent = q.text || ("Question " + (idx+1));
         qWrap.appendChild(lbl);
 
         if (q.type === "single" && Array.isArray(q.options)) {
-          const opts = document.createElement("div"); opts.className = "opts";
-          (q.options).forEach(opt => {
-            const b = document.createElement("button");
+          var opts = document.createElement("div"); opts.className = "opts";
+          q.options.forEach(function(opt){
+            var b = document.createElement("button");
             b.type = "button"; b.className = "optbtn"; b.textContent = opt;
-            b.addEventListener("click", () => {
-              opts.querySelectorAll(".optbtn").forEach(x => x.classList.remove("active"));
+            b.addEventListener("click", function(){
+              Array.prototype.forEach.call(opts.querySelectorAll(".optbtn"), function(x){ x.classList.remove("active"); });
               b.classList.add("active");
-              answers[q.id || `q${idx}`] = opt;
+              answers[q.id || ("q"+idx)] = opt;
             });
             opts.appendChild(b);
           });
           qWrap.appendChild(opts);
-        } else if (q.type === "scale" && Number.isFinite(q.min) && Number.isFinite(q.max)) {
-          const wrap = document.createElement("div"); wrap.className = "rangewrap";
-          const out = document.createElement("div"); out.style.minWidth="32px"; out.textContent = String(q.min);
-          const rng = document.createElement("input");
+        } else if (q.type === "scale" && isFinite(q.min) && isFinite(q.max)) {
+          var wrap = document.createElement("div"); wrap.className = "rangewrap";
+          var out = document.createElement("div"); out.style.minWidth="32px"; out.textContent = String(q.min);
+          var rng = document.createElement("input");
           rng.type = "range";
           rng.min = q.min; rng.max = q.max; rng.step = 1; rng.value = q.min;
-          rng.addEventListener("input", () => {
-            out.textContent = rng.value;
-            answers[q.id || `q${idx}`] = Number(rng.value);
-          });
-          answers[q.id || `q${idx}`] = q.min;
+          rng.addEventListener("input", function(){ out.textContent = rng.value; answers[q.id || ("q"+idx)] = Number(rng.value); });
+          answers[q.id || ("q"+idx)] = q.min;
           wrap.appendChild(rng); wrap.appendChild(out);
           qWrap.appendChild(wrap);
 
           if (Array.isArray(q.labels)) {
-            const lab = document.createElement("div");
-            lab.style.font = "600 12px system-ui"; lab.style.opacity=".8";
-            lab.style.marginTop = "4px";
+            var lab = document.createElement("div");
+            lab.style.font = "600 12px system-ui"; lab.style.opacity=".8"; lab.style.marginTop = "4px";
             lab.textContent = q.labels.join(" | ");
             qWrap.appendChild(lab);
           }
         } else {
-          const inp = document.createElement("input");
+          var inp = document.createElement("input");
           inp.type = "text"; inp.style.width="100%";
-          inp.addEventListener("input", () => { answers[q.id || `q${idx}`] = inp.value; });
+          inp.addEventListener("input", function(){ answers[q.id || ("q"+idx)] = inp.value; });
           qWrap.appendChild(inp);
         }
 
         form.appendChild(qWrap);
       });
 
-      const submit = document.createElement("button");
+      var submit = document.createElement("button");
       submit.id = "study-submit"; submit.textContent = "Submit";
-      submit.addEventListener("click", () => {
-        Object.entries(answers).forEach(([itemId, response]) => {
-          L.logTest(block.id, itemId, "post_question", response);
-        });
+      submit.addEventListener("click", function(){
+        Object.keys(answers).forEach(function(itemId){ L.logTest(block.id, itemId, "post_question", answers[itemId]); });
         form.remove();
         hide();
         resolve();
@@ -318,305 +318,403 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------- Awareness Yes/No (logs to tests CSV) ----------
+  // ---------- Awareness Yes/No (mini-card) ----------
   function askYesNoAwareness(block) {
-    return new Promise((resolve) => {
-      show("Quick question", "Did you notice any tile changing color?");
-      let form = document.getElementById("study-form");
-      if (!form) {
-        form = document.createElement("div");
-        form.id = "study-form";
-        overlay.appendChild(form);
+    return new Promise(function(resolve){
+      var host = document.getElementById("study-form");
+      if (!host) { host = document.createElement("div"); host.id = "study-form"; overlay.appendChild(host); }
+      host.innerHTML = "";
+
+      var card = document.createElement("div"); card.id = "yn-card";
+      card.innerHTML =
+        '<div id="yn-title">Did you notice any tile changing color?</div>' +
+        '<div id="yn-sub">Answer and continue. You can also press <b>Y</b> or <b>N</b>.</div>' +
+        '<div id="yn-actions">' +
+          '<button class="yn-btn" id="yn-yes">Yes <span class="yn-kbd">Y</span></button>' +
+          '<button class="yn-btn" id="yn-no">No <span class="yn-kbd">N</span></button>' +
+        '</div>';
+      host.appendChild(card);
+
+      show("", "");
+
+      function cleanup(){
+        try { host.remove(); } catch(_) {}
+        hide();
       }
-      form.innerHTML = "";
+      function done(val){
+        try {
+          // Save awareness answer to carry into the next tests block
+          window.__pendingAwareness = { block_id: block.id, response: val };
+          console.log("🟤 Awareness stored temporarily:", window.__pendingAwareness);
+        } catch(e){ console.warn("Awareness temp store failed:", e); }
 
-      const wrap = document.createElement("div");
-      wrap.className = "opts";
+        try { window.removeEventListener("keydown", onk, true); } catch(_){}
+        cleanup();
+        resolve();
+      }
 
-      const makeBtn = (label) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "optbtn";
-        b.textContent = label;
-        b.addEventListener("click", () => {
-          L.logTest(block.id, "noticed_color_change", "oddball_awareness", label);
-          form.remove();
-          hide();
-          resolve();
-        });
-        return b;
-      };
+      function onk(e){
+        if (e.key === "y" || e.key === "Y") { done("Yes"); }
+        if (e.key === "n" || e.key === "N") { done("No");  }
+      }
+      window.addEventListener("keydown", onk, true);
 
-      wrap.appendChild(makeBtn("Yes"));
-      wrap.appendChild(makeBtn("No"));
-      form.appendChild(wrap);
+      document.getElementById("yn-yes").onclick = function(){ done("Yes"); };
+      document.getElementById("yn-no").onclick  = function(){ done("No");  };
     });
   }
 
   // ================= REST =================
-  async function runRestBlock(cfg, block){
-    show("Rest", block.ui?.show_message || "Relax");
-    await new Promise(r=>setTimeout(r,(block.stop?.value||10)*1000));
-    hide();
+  function runRestBlock(cfg, block){
+    return new Promise(function(res){
+      show("Ready...", "");
+      setTimeout(function(){ hide(); res(); }, 2000);
+    });
   }
 
-  // Track last finished play block
-  let lastPlayBlockId = null;
+  // Track last finished play block + awareness flag
+  var lastPlayBlockId = null;
+  var askedAwareness = window.__askedAwareness || false;
+
+  // ---------- Per-block default overrides ----------
+  function applyDefaultsForBlock(block){
+    if (block && block.id === "medium_mode") {
+      block.goal_tile = 512;
+      delete block.timer;
+      delete block.stop;
+    }
+    if (block && block.id === "hard_mode") {
+      block.timer = block.timer || { hard_cap_sec: 90 };
+      if (!isFinite(Number(block.timer.hard_cap_sec))) block.timer.hard_cap_sec = 90;
+      block.stop = { kind: "time", value: block.timer.hard_cap_sec };
+
+      block.start_state = block.start_state || {};
+      var pf = block.start_state.prefill || {};
+      if (!isFinite(Number(pf.fill_ratio))) pf.fill_ratio = 0.35;
+      pf.values = pf.values || {"2":0.6,"4":0.3,"8":0.1};
+      block.start_state.prefill = pf;
+
+      block.spawn = block.spawn || {};
+      block.spawn.rates = block.spawn.rates || {"2":0.7,"4":0.25,"8":0.05};
+    }
+  }
 
   // ================= PLAY =================
-  async function runPlayBlock(cfg, block){
-    return new Promise(resolve=>{
-      const size = block.board_size || cfg?.global?.board_size || 4;
+  function runPlayBlock(cfg, block){
+    return new Promise(function(resolve){
+      applyDefaultsForBlock(block);
+      // Guard: ensure only the most recent play block logs moves.
+      var playSessionToken = (Math.random().toString(36).slice(2) + Date.now().toString(36));
+      window.__activePlayToken = playSessionToken;
+
+      var size = block.board_size || (cfg && cfg.global && cfg.global.board_size) || 4;
       wipeGameDOM(size);
 
-      const msgNode = document.querySelector(".game-message");
+      anchorGoalBadgeToBoard();
+      anchorTimerBadgeToBoard();
+
+      var msgNode = document.querySelector(".game-message");
       if (msgNode) {
         msgNode.classList.remove("game-won", "game-over");
-        const p = msgNode.querySelector("p");
-        if (p) p.textContent = "";
+        var p = msgNode.querySelector("p"); if (p) p.textContent = "";
       }
 
-      const gm = new GameManager(size, KeyboardInputManager, HTMLActuator, NoStorageManager);
-      const freshActuator = gm.actuator;
+      var gm = new GameManager(size, KeyboardInputManager, HTMLActuator, NoStorageManager);
+      var freshActuator = gm.actuator;
 
-      if (freshActuator?.messageContainer) {
-        freshActuator.messageContainer.classList.remove("game-won", "game-over");
-        const p = freshActuator.messageContainer.querySelector("p");
-        if (p) p.textContent = "";
-      }
-      gm.over=false; gm.won=false; gm.keepPlaying=false;
+      gm.grid = new Grid(size);
+      gm.score = 0; gm.over=false; gm.won=false; gm.keepPlaying=false;
 
-      // Context for move logs
-      L.setContext({ participant_id:"P001", mode_id:block.id });
+      if (gm.actuator && typeof gm.actuator.clearMessage === "function") gm.actuator.clearMessage();
+
+      // context per block
+      L.setContext({ participant_id:"P001", mode_id: block.id });
       L.newSession(block.id);
 
-      const goalTile=Number.isFinite(Number(block.goal_tile))?Number(block.goal_tile):null;
-      const introMsg=goalTile?`Goal: reach ${goalTile}`:"Press arrow keys to play";
-      show(block.description||block.id,introMsg);
-      const ov=document.getElementById("study-overlay");
-      if(ov) ov.style.pointerEvents="none";
-      setTimeout(()=>{ hide(); if(ov) ov.style.pointerEvents=""; },5000);
+      var goalTile = isFinite(Number(block.goal_tile)) ? Number(block.goal_tile) : null;
+      var introMsg = goalTile
+        ? '<span style="display:block;margin-top:6px;font:600 18px/1.3 system-ui;color:#fff;">Goal: reach ' + goalTile + '</span>'
+        : "Press arrow keys to play";
+      show(block.description || block.id, "");
+      bodyEl.innerHTML = introMsg;
 
-      let ended=false, cd=null, microTimer=null;
+      var ov = document.getElementById("study-overlay");
+      if (ov) ov.style.pointerEvents = "none";
+      setTimeout(function(){ hide(); if (ov) ov.style.pointerEvents = ""; }, 5000);
+
+      if (goalTile) showGoalBadge(goalTile); else hideGoalBadge();
+
+      var ended=false, cd=null;
+      var scheduled = [];
+      function schedule(fn, ms){ var id=setTimeout(function(){ if(!ended) fn(); }, ms); scheduled.push(id); }
+      function clearScheduled(){ scheduled.forEach(function(id){ clearTimeout(id); }); scheduled = []; }
 
       function finalizeAndResolve(){
+        // Deactivate this block's token so lingering handlers skip logging.
+        if (window.__activePlayToken === playSessionToken) { window.__activePlayToken = null; }
+
         lastPlayBlockId = block.id;
-        setTimeout(()=>resolve(L.moveRowsForExport().filter(r=>r.mode_id===block.id)),80);
+        hideGoalBadge();
+
+        setTimeout(function(){ 
+          resolve(L.moveRowsForExport().filter(function(r){ return r.mode_id===block.id; })); 
+        }, 80);
       }
+
       function stop(reason){
         if (ended) return;
         ended = true;
-        try { cd?.stop?.(); } catch(_){}
-        try { clearTimeout(microTimer); } catch(_){}
+
+        if (cd && typeof cd.stop === "function") { try { cd.stop(); } catch(e) {} }
+        clearScheduled();
+        hideGoalBadge();
         hide();
-        askPostQuestions(block).then(finalizeAndResolve);
+
+        // Awareness prompt after medium_mode, then post-questions, then resolve
+        if (block.id === "medium_mode") {
+          askYesNoAwareness(block)
+            .then(function(){ return askPostQuestions(block); })
+            .then(finalizeAndResolve);
+        } else {
+          askPostQuestions(block).then(finalizeAndResolve);
+        }
       }
 
-      if((block.stop?.kind==="time"&&block.stop?.value)||block.timer?.hard_cap_sec){
-        const secs=Number(block.timer?.hard_cap_sec||block.stop?.value||0);
-        cd=startCountdown(secs,()=>stop("time_done"));
+      // Round countdown (if any)
+      if ((block.stop && block.stop.kind==="time" && block.stop.value) || (block.timer && block.timer.hard_cap_sec)){
+        var secs = Number((block.timer && block.timer.hard_cap_sec) || (block.stop && block.stop.value) || 0);
+        cd = startCountdown(secs, function(){ stop("time_done"); });
       }
 
-      // --------- MOVE LOGGING (reliable) ---------
-      let lastMoveAt=performance.now();
-      let inputs_total=0;
-      const dirName=d=>({0:"up",1:"right",2:"down",3:"left"})[d]??String(d);
-
-      gm.inputManager.on("move", (dir) => {
-        const now = performance.now();
-        const latencyMs = Math.max(1, Math.round(now - lastMoveAt));
-        lastMoveAt = now;
-        inputs_total += 1;
-
-        // Snapshot grid AFTER GameManager applied move
-        const n = gm.size;
-        const gridOut = Array.from({length:n}, (_, y) =>
-          Array.from({length:n}, (_, x) => {
-            const cell = gm.grid.cells[x][y];
-            return cell ? cell.value : 0;
-          })
-        );
-
-        L.logMove(inputs_total, dirName(dir), gm.score, latencyMs, gridOut);
-      });
-      // -------------------------------------------
-
-      // Start grid / prefill
-      if (!applyStartGrid(gm, block.start_state)) {
-        prefillBoard(gm, block.start_state);
-      }
-
-      // Spawns (respect YAML)
-      const spawnRates=block?.spawn?.rates;
-      const origAdd=gm.addRandomTile.bind(gm);
-      gm.addRandomTile=function(){
+      // Spawns override (respect YAML)
+      var spawnRates = block && block.spawn && block.spawn.rates;
+      var origAdd = gm.addRandomTile.bind(gm);
+      gm.addRandomTile = function(){
         if(!gm.grid.cellsAvailable()) return origAdd();
-        const cell=gm.grid.randomAvailableCell();
-        if(spawnRates){ gm.grid.insertTile(new Tile(cell,pickWeighted(spawnRates))); return; }
+        var cell = gm.grid.randomAvailableCell();
+        if (spawnRates) { gm.grid.insertTile(new Tile(cell, pickWeighted(spawnRates))); return; }
         origAdd();
       };
 
-      const oldActuate=freshActuator.actuate.bind(freshActuator);
-      freshActuator.actuate=(grid,meta)=>{
-        oldActuate(grid,meta);
-        const msgEl=document.querySelector(".game-message");
-        if(msgEl&&!gm.over&&!gm.won) msgEl.classList.remove("game-over","game-won");
+      // Apply start grid or prefill; else add exactly N initial tiles (default 1)
+      var hadGrid = applyStartGrid(gm, block.start_state);
+      if (!hadGrid) {
+        var hadPrefillBefore = (block.start_state && block.start_state.prefill) ? true : false;
+        if (block.start_state && block.start_state.prefill) {
+          prefillBoard(gm, block.start_state);
+        }
+        if (!hadPrefillBefore) {
+          var desiredInitial = (block.start_state && isFinite(Number(block.start_state.initial_tiles)))
+            ? Number(block.start_state.initial_tiles) : 1;
+          for (var k = 0; k < desiredInitial; k++) {
+            if (gm.grid.cellsAvailable()) gm.addRandomTile();
+          }
+        }
+        gm.actuator.actuate(gm.grid, { score: 0 });
+      }
 
-        if(meta?.terminated){
+      // --------- MOVE LOGGING ---------
+      var lastMoveAt = performance.now();
+      var inputs_total = 0;
+      function dirName(d){ return ({0:"up",1:"right",2:"down",3:"left"})[d] || String(d); }
+
+      gm.inputManager.on("move", function(dir){
+        if (window.__activePlayToken !== playSessionToken) { return; }
+
+        var now = performance.now();
+        var latencyMs = Math.max(1, Math.round(now - lastMoveAt));
+        lastMoveAt = now;
+        inputs_total += 1;
+
+        var n = gm.size;
+        var gridOut = Array.from({length:n}, function(_, y){
+          return Array.from({length:n}, function(_, x){
+            var cell = gm.grid.cells[x][y];
+            return cell ? cell.value : 0;
+          });
+        });
+
+        L.logMove(inputs_total, dirName(dir), gm.score, latencyMs, gridOut);
+      });
+
+      var oldActuate = freshActuator.actuate.bind(freshActuator);
+      freshActuator.actuate = function(grid,meta){
+        oldActuate(grid,meta);
+        var msgEl = document.querySelector(".game-message");
+        if (msgEl && !gm.over && !gm.won) msgEl.classList.remove("game-over","game-won");
+
+        if (meta && meta.terminated){
           stop(meta.over ? "game_over" : "won");
           return;
         }
 
-        if(Number.isFinite(goalTile)){
-          let maxNow=0; grid.eachCell((x,y,c)=>{ if(c) maxNow=Math.max(maxNow,c.value); });
-          if(maxNow>=goalTile && !gm.won){
-            gm.won=true;
-            show("You win!",`Reached ${goalTile}`);
-            setTimeout(()=>stop("goal_reached"),600);
+        if (isFinite(goalTile)){
+          var maxNow=0;
+          grid.eachCell(function(x,y,c){ if(c) maxNow = Math.max(maxNow, c.value); });
+          if (maxNow>=goalTile && !gm.won){
+            gm.won = true;
+            show("You win!", "Reached " + goalTile);
+            setTimeout(function(){ stop("goal_reached"); }, 600);
           }
         }
       };
 
-      // Oddball flashes (visual only)
-      const enableMicro=(block.id==="oddball_mode");
-      let microStarted=false, microCount=0;
-      const MICRO_LIMIT=2;
-      function fireFlashOnce(){
-        if (!enableMicro || microCount >= MICRO_LIMIT || ended) return;
-        const el=getRandomTileEl();
-        if(el){ flashTileEl(el,700); }
-        microCount += 1;
-        if (microCount < MICRO_LIMIT) {
-          const gap = 12000 + Math.floor(Math.random()*8000);
-          microTimer = setTimeout(fireFlashOnce, gap);
+      // ---- Medium-mode flashes (oddball logic moved here) ----
+      if (block.id === "medium_mode") {
+        function getRandomTileEl(){
+          var inners = Array.prototype.slice.call(document.querySelectorAll(".tile .tile-inner"));
+          return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
         }
+        function flashTileEl(el, ms){
+          ms = ms || 700;
+          if(!el) return;
+          el.classList.add("flash-brief");
+          setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
+        }
+        function jitter(base, spread){ spread = spread || 2000; return Math.max(0, base + Math.floor((Math.random()*spread) - spread/2)); }
+
+        schedule(function(){ flashTileEl(getRandomTileEl(), 700); }, jitter(15000, 2500));
+        schedule(function(){ flashTileEl(getRandomTileEl(), 700); }, jitter(65000, 3000));
       }
-      setTimeout(()=>{
-        if(enableMicro && !microStarted && !ended){
-          microStarted=true;
-          fireFlashOnce();
-        }
-      },3000);
     });
   }
 
   // ================= TESTS =================
-  async function runTestsBlock(cfg, block){
-    L.setContext({ participant_id:"P001", mode_id:block.id });
-    L.newSession(block.id);
-    try {
-      const res = await Tests.runTests(block.tests||[], block.id, block.tests_options||null);
+  function runTestsBlock(cfg, block){
+    return new Promise(function(resolve){
+      L.setContext({ participant_id:"P001", mode_id:block.id });
+      L.newSession(block.id);
 
-      const write = (id, val) => L.logTest(block.id, String(id), "test_item", val);
-
-      if (res != null) {
-        if (Array.isArray(res)) {
-          res.forEach((item, i) => {
-            if (item && typeof item === "object") {
-              const id  = item.id ?? item.itemId ?? item.key ?? i;
-              const val = item.response ?? item.value ?? item.answer ?? item.score ?? JSON.stringify(item);
-              write(id, val);
-            } else {
-              write(i, item);
-            }
-          });
-        } else if (typeof res === "object") {
-          Object.entries(res).forEach(([k, v]) => write(k, v));
-        } else {
-          write("result", res);
-        }
-      } else if (typeof Tests.getLastResults === "function") {
-        const last = Tests.getLastResults();
-        if (last && typeof last === "object") {
-          Object.entries(last).forEach(([k, v]) => write(k, v));
-        }
+      // ✅ Carry over awareness from previous medium block into tests CSV
+      if (window.__pendingAwareness) {
+        var p = window.__pendingAwareness;
+        try {
+          L.logTest(p.block_id, "noticed_color_change", "medium_awareness", p.response);
+          console.log("✅ Awareness carried into tests:", p.response);
+        } catch(e){ console.warn("carry logTest failed:", e); }
+        window.__pendingAwareness = null;
       }
-    } catch (e) {
-      console.error("TestsUI.runTests error:", e);
-    }
 
-    // Awareness question if previous was oddball
-    if (lastPlayBlockId === "oddball_mode" || /oddball/i.test(block.id)) {
-      await askYesNoAwareness(block);
-    }
+      Promise.resolve().then(function(){
+        return Tests && typeof Tests.runTests==="function"
+          ? Tests.runTests(block.tests || [], block.id, block.tests_options || null)
+          : null;
+      }).then(function(res){
+        function write(id, val){ L.logTest(block.id, String(id), "test_item", val); }
+        if (res != null) {
+          if (Array.isArray(res)) {
+            res.forEach(function(item, i){
+              if (item && typeof item === "object") {
+                var id  = item.id != null ? item.id : (item.itemId != null ? item.itemId : (item.key != null ? item.key : i));
+                var val = item.response != null ? item.response :
+                          (item.value != null ? item.value :
+                          (item.answer != null ? item.answer :
+                          (item.score != null ? item.score : JSON.stringify(item))));
+                write(id, val);
+              } else { write(i, item); }
+            });
+          } else if (typeof res === "object") {
+            Object.keys(res).forEach(function(k){ write(k, res[k]); });
+          } else {
+            write("result", res);
+          }
+        } else if (Tests && typeof Tests.getLastResults === "function") {
+          var last = Tests.getLastResults();
+          if (last && typeof last === "object") {
+            Object.keys(last).forEach(function(k){ write(k, last[k]); });
+          }
+        }
+      }).catch(function(e){
+        console.error("TestsUI.runTests error:", e);
+      }).finally(function(){
+        resolve();
+      });
+    });
   }
 
   // ================= RUNNER =================
-  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  const ROUND_ORDER=["easy_mode","medium_mode","hard_mode","oddball_mode"];
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  var ROUND_ORDER=["easy_mode","medium_mode","hard_mode"];
   function preBlockLabel(nextId,nextType){
-    if(nextType!=="play") return null;
-    const idx=ROUND_ORDER.indexOf(nextId); if(idx===-1) return null;
-    const n=idx+1,total=ROUND_ORDER.length;
-    return { title:`Round ${n}/${total}`, body:"Starting in 5 seconds…" };
+    if (nextType !== "play") return null;
+    var idx = ROUND_ORDER.indexOf(nextId); if (idx === -1) return null;
+    var n = idx+1, total = ROUND_ORDER.length;
+    return { title: "Round " + n + "/" + total, body: "Starting in 3 seconds..." };
   }
-  const tsPrecise=()=>{ const d=new Date(),p=n=>String(n).padStart(2,"0");
-    const ms=String(d.getMilliseconds()).padStart(3,"0");
-    return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}${ms}`;
-  };
+  function tsPrecise(){
+    var d=new Date();
+    function p(n){ return String(n).padStart(2,"0"); }
+    var ms=String(d.getMilliseconds()).padStart(3,"0");
+    return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+ms;
+  }
   function buildName(pattern, meta, blockId, kind){
-    // allow {study_id}, {block_id}, {kind}, {ts}
-    const base=(pattern||"{study_id}__{block_id}__{kind}__{ts}.csv")
-      .replace("{study_id}", meta?.study_id||"study")
+    var base=(pattern||"{study_id}__{block_id}__{kind}__{ts}.csv")
+      .replace("{study_id}", (meta && meta.study_id) || "study")
       .replace("{block_id}", blockId)
       .replace("{kind}", kind)
       .replace("{ts}", tsPrecise());
-    // If user pattern lacked {kind}, append before .csv to avoid collisions.
     if (!/__moves__|__tests__|__.+__/.test(base)) {
-      return base.replace(/\.csv$/i, `__${kind}.csv`);
+      return base.replace(/\.csv$/i, "__"+kind+".csv");
     }
     return base;
   }
 
-  async function runStudy(config){
-    const { meta, blocks, sequence, output }=config;
-    const map=Object.fromEntries(blocks.map(b=>[b.id,b]));
-    for(let i=0;i<sequence.length;i++){
-      const id=sequence[i],b=map[id]; if(!b) continue;
-      const label=preBlockLabel(id,b.type);
-      if(label){ show(label.title,label.body); await sleep(5000); hide(); }
-
-      if(b.type==="rest"){
-        await runRestBlock(config,b);
-        continue;
-      }
-
-      if(b.type==="play"){
-        await runPlayBlock(config,b);
-
-        if (output?.autosave_csv_on_block_end){
-          // Save only MOVES for this play block
-          const rows = L.moveRowsForExport().filter(r => r.mode_id === id);
-          const csv  = L.toCSVMoves(rows);
-          const name = buildName(output.filename_pattern, meta, id, "moves");
-          L.download(name, csv);
+  function runStudy(config){
+    return new Promise(function(resolve){
+      var meta = config.meta, blocks = config.blocks, sequence = config.sequence, output = config.output;
+      var map = {};
+      blocks.forEach(function(b){ map[b.id]=b; });
+      (function loop(i){
+        if (i>=sequence.length){ show("Study complete","Thank you!"); resolve(); return; }
+        var id=sequence[i], b=map[id];
+        if(!b){ loop(i+1); return; }
+        var label=preBlockLabel(id,b.type);
+        (function beforePlay(){
+          if(label){ show(label.title,label.body); sleep(3000).then(function(){ hide(); doRun(); }); }
+          else { doRun(); }
+        })();
+        function doRun(){
+          if (b.type==="rest"){
+            runRestBlock(config,b).then(function(){ loop(i+1); });
+            return;
+          }
+          if (b.type==="play"){
+            runPlayBlock(config,b).then(function(){
+              if (output && output.autosave_csv_on_block_end){
+                var rows = L.moveRowsForExport().filter(function(r){ return r.mode_id===id; });
+                var csv  = L.toCSVMoves(rows);
+                var name = buildName(output.filename_pattern, meta, id, "moves");
+                L.download(name, csv);
+              }
+              loop(i+1);
+            });
+            return;
+          }
+          if (b.type==="tests"){
+            runTestsBlock(config,b).then(function(){
+              if (output && output.autosave_csv_on_block_end){
+                var rows = L.testRowsForExport().filter(function(r){ return r.mode_id===id; });
+                var csv  = L.toCSVTests(rows);
+                var name = buildName(output.tests_filename_pattern, meta, id, "tests");
+                L.download(name, csv);
+              }
+              loop(i+1);
+            });
+            return;
+          }
+          loop(i+1);
         }
-        continue;
-      }
-
-      if(b.type==="tests"){
-        await runTestsBlock(config,b);
-
-        if (output?.autosave_csv_on_block_end){
-          // Save only TESTS for this tests block
-          const rows = L.testRowsForExport().filter(r => r.mode_id === id);
-          const csv  = L.toCSVTests(rows);
-          const name = buildName(output.tests_filename_pattern, meta, id, "tests");
-          L.download(name, csv);
-        }
-        continue;
-      }
-    }
-    show("Study complete","Thank you!");
+      })(0);
+    });
   }
 
   // ---------- Boot ----------
-  try{
-    const cfg=await loadConfigSmart();
+  loadConfigSmart().then(function(cfg){
     L.setContext({ participant_id:"P001" });
-    await runStudy(cfg);
-  }catch(e){
+    return runStudy(cfg);
+  }).catch(function(e){
     console.error(e);
     show("Config error","Could not load public/block.yaml");
-  }
-})();
+  });
+
+})();  // <— end IIFE, safe due to leading semicolon

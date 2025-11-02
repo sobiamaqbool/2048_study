@@ -1,26 +1,34 @@
-// v3.3 — minimal move logs + tests router via log()
-window.StudyLogger = (() => {
-  console.info("StudyLogger v3.3");
+// logger.js — v3.9  (fixed logTest + medium awareness support)
+// Minimal move logs + tests router via log()
 
-  // ---- ids
+window.StudyLogger = (() => {
+  console.info("StudyLogger v3.10");
+
+  // ---- ids ----
   const getOrMakeAnonId = () => {
     const k = "study_anon_id";
     let id = localStorage.getItem(k);
     if (!id) {
-      id = (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) + "-" + Date.now().toString(36);
+      id =
+        (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) +
+        "-" +
+        Date.now().toString(36);
       localStorage.setItem(k, id);
     }
     return id;
   };
   const newSessionId = () =>
-    (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) + "-" + Date.now().toString(36);
+    (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) +
+    "-" +
+    Date.now().toString(36);
 
-  // ---- state
+  // ---- state ----
   const moveRows = [];
   const testRows = [];
   const nowISO = () => new Date().toISOString();
-  const esc = v => {
-    const val = (Array.isArray(v) || (v && typeof v === "object")) ? JSON.stringify(v) : v;
+  const esc = (v) => {
+    const val =
+      Array.isArray(v) || (v && typeof v === "object") ? JSON.stringify(v) : v;
     return `"${String(val ?? "").replace(/"/g, '""')}"`;
   };
 
@@ -28,24 +36,44 @@ window.StudyLogger = (() => {
     participant_id: "P001",
     anon_id: getOrMakeAnonId(),
     session_id: newSessionId(),
-    mode_id: "" // e.g., "easy_mode" | "hard_mode" | "tests_after_easy"
+    mode_id: "", // e.g., "easy_mode" | "hard_mode"
   };
 
-  // ---- headers
+  // ---- headers ----
   const MOVE_HEADERS = [
-    "timestamp","participant_id","anon_id","session_id","mode_id",
-    "move_num","direction","score","latency_raw_ms","grid"
+    "timestamp",
+    "participant_id",
+    "anon_id",
+    "session_id",
+    "mode_id",
+    "move_num",
+    "direction",
+    "score",
+    "latency_raw_ms",
+    "grid",
   ];
   const TEST_HEADERS = [
-    "timestamp","participant_id","anon_id","session_id","mode_id",
-    "test_block_id","item_id","item_type","response"
+    "timestamp",
+    "participant_id",
+    "anon_id",
+    "session_id",
+    "mode_id",
+    "test_block_id",
+    "item_id",
+    "item_type",
+    "response",
   ];
 
-  // ---- context
-  function setContext(partial = {}) { context = { ...context, ...partial }; }
-  function newSession(mode_id) { context.session_id = newSessionId(); if (mode_id) context.mode_id = mode_id; }
+  // ---- context ----
+  function setContext(partial = {}) {
+    context = { ...context, ...partial };
+  }
+  function newSession(mode_id) {
+    context.session_id = newSessionId();
+    if (mode_id) context.mode_id = mode_id;
+  }
 
-  // ---- moves
+  // ---- moves ----
   function normalizeMove(obj) {
     const base = {
       timestamp: nowISO(),
@@ -53,15 +81,21 @@ window.StudyLogger = (() => {
       anon_id: context.anon_id,
       session_id: context.session_id,
       mode_id: context.mode_id,
-      move_num: "", direction: "", score: "", latency_raw_ms: "", grid: ""
+      move_num: "",
+      direction: "",
+      score: "",
+      latency_raw_ms: "",
+      grid: "",
     };
     return { ...base, ...obj };
   }
   function logMove(move_num, direction, score, latency_raw_ms, grid) {
-    moveRows.push(normalizeMove({ move_num, direction, score, latency_raw_ms, grid }));
+    moveRows.push(
+      normalizeMove({ move_num, direction, score, latency_raw_ms, grid })
+    );
   }
 
-  // ---- tests
+  // ---- tests ----
   function normalizeTest(obj) {
     const base = {
       timestamp: nowISO(),
@@ -69,46 +103,57 @@ window.StudyLogger = (() => {
       anon_id: context.anon_id,
       session_id: context.session_id,
       mode_id: context.mode_id,
-      test_block_id: "", item_id: "", item_type: "", response: ""
+      test_block_id: "",
+      item_id: "",
+      item_type: "",
+      response: "",
     };
     return { ...base, ...obj };
   }
+
+  // ✅ Correct logTest restored
   function logTest(test_block_id, item_id, item_type, response) {
-    testRows.push(normalizeTest({ test_block_id, item_id, item_type, response }));
+    testRows.push(
+      normalizeTest({ test_block_id, item_id, item_type, response })
+    );
   }
 
-  // ---- compatibility: route TestsUI logs into tests CSV
-  // Many UIs call: StudyLogger.log(event, key, value, extra)
+  // ---- compatibility router (for TestsUI etc.) ----
   function log(event, key, value, extra = {}) {
-    // Detect “test-like” logs and store as tests.
     const e = String(event ?? "");
     const k = String(key ?? "");
 
     const looksTest =
-      e.includes("test") || k.includes("test") ||
-      k.includes("answer") || e === "answer" ||
-      extra.type === "test" || extra.kind === "test" || extra.is_test === true ||
-      extra.item_id != null || extra.qid != null;
+      e.includes("test") ||
+      k.includes("test") ||
+      k.includes("answer") ||
+      e === "answer" ||
+      extra.type === "test" ||
+      extra.kind === "test" ||
+      extra.is_test === true ||
+      extra.item_id != null ||
+      extra.qid != null;
 
     if (looksTest) {
       const test_block_id = extra.block_id || context.mode_id || "unknown_block";
-      const item_id = (extra.item_id ?? extra.id ?? extra.qid ?? k ?? "item").toString();
+      const item_id =
+        (extra.item_id ?? extra.id ?? extra.qid ?? k ?? "item").toString();
       const response = extra.response ?? extra.value ?? value;
       const item_type = e || "test_event";
       logTest(test_block_id, item_id, item_type, response);
       return;
     }
-
-    // Ignore everything else to keep minimal schema.
   }
 
-  // ---- export
+  // ---- export helpers ----
   const moveRowsForExport = () => moveRows.slice();
   const testRowsForExport = () => testRows.slice();
 
   function toCSV(rows, headers) {
     const head = headers.join(",");
-    const body = rows.map(x => headers.map(h => esc(x[h])).join(",")).join("\n");
+    const body = rows
+      .map((x) => headers.map((h) => esc(x[h])).join(","))
+      .join("\n");
     return head + "\n" + body + "\n";
   }
   const toCSVMoves = (r = moveRows) => toCSV(r, MOVE_HEADERS);
@@ -125,14 +170,19 @@ window.StudyLogger = (() => {
 
   return {
     // context
-    setContext, newSession,
+    setContext,
+    newSession,
     // moves
-    logMove, moveRowsForExport, toCSVMoves,
+    logMove,
+    moveRowsForExport,
+    toCSVMoves,
     // tests
-    logTest, testRowsForExport, toCSVTests,
+    logTest,
+    testRowsForExport,
+    toCSVTests,
     // utils
     download,
-    // compatibility (now routes tests)
-    log
+    // compatibility
+    log,
   };
 })();

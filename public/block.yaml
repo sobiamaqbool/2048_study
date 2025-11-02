@@ -4,7 +4,7 @@ meta:
 
 global:
   board_size: 4
-  spawn_rates: {"2": 0.9, "4": 0.1}   # default; blocks can override
+  spawn_rates: {"2": 0.9, "4": 0.1}
   autosave_every_ms: 5000
 
 blocks:
@@ -24,20 +24,19 @@ blocks:
     board_size: 4
     goal_tile: 128
     start_state:
-     classic: true
+      classic: true
     rules:
-     undo_allowed: true
-     hints: true
+      undo_allowed: true
+      hints: true
     spawn:
-     rates: {"2": 0.9, "4": 0.1}
+      rates: {"2": 0.9, "4": 0.1}
     ui:
-     palette: "soft"
-     feedback: ["Nice start!", "Keep going!"]
-     animation_speed: "slow"
+      palette: "soft"
+      feedback: ["Nice start!", "Keep going!"]
+      animation_speed: "slow"
     audio:
-     music: "tempo_easy"
-     sfx: "subtle_particles"
-
+      music: "tempo_easy"
+      sfx: "subtle_particles"
 
   - id: "tests_after_easy"
     type: "tests"
@@ -46,25 +45,17 @@ blocks:
       TLX:
         omit_dimensions: ["temporal_demand"]
 
-
-
-   # ——— Medium Mode ———
+  # ——— Medium Mode (with flashes; no timer) ———
   - id: "medium_mode"
     type: "play"
-    description: "Balanced challenge — (2-minute timer)"
+    description: "Balanced challenge"
     board_size: 4
     goal_tile: 512
     start_state:
-    classic: true
+      classic: true
     rules:
       undo_allowed: false
       hints: false
-    stop:
-      kind: "time"
-      value: 120                   # 2 minutes
-    timer:
-      hard_cap_sec: 120
-      show_countdown: true         # show countdown only here
     spawn:
       rates: {"2": 0.9, "4": 0.1}
     ui:
@@ -74,10 +65,19 @@ blocks:
     audio:
       music: "tempo_medium"
       sfx: "subtle_particles"
+    # Awareness questions moved here (after flashes in medium)
+    post_questions:
+      - type: "single"
+        id: "saw_flash"
+        text: "Did you notice the flashes?"
+        options: ["Yes", "No"]
+      - type: "scale"
+        id: "flash_count"
+        text: "How many flashes did you see?"
+        min: 0
+        max: 2
+        labels: ["0","1","2"]
 
-
-
-  # ——— Tests after Medium ———
   - id: "tests_after_medium"
     type: "tests"
     tests: ["TLX","SAM","Stroop"]
@@ -85,25 +85,25 @@ blocks:
   # ——— Hard Mode ———
   - id: "hard_mode"
     type: "play"
-    description: "Intense challenge — dense board, 1-minute timer"
+    description: "Dense board Challenge, 1-minute timer"
     board_size: 4
     goal_tile: 1024
     start_state:
       classic: false
       prefill:
-       fill_ratio: 0.50               # 50% of board filled at start
-       values: {"4": 0.30, "8": 0.25, "16": 0.25, "32": 0.20}
+        fill_ratio: 0.50
+        values: {"4": 0.30, "8": 0.25, "16": 0.25, "32": 0.20}
     rules:
       undo_allowed: false
       hints: false
     stop:
       kind: "time"
-      value: 60                        # 1 minute (60 seconds)
+      value: 60
     timer:
       hard_cap_sec: 60
       show_countdown: true
     spawn:
-      rates: {"2": 0.30, "4":0.25, "8": 0.25, "32": 0.20}
+      rates: {"2": 0.30, "4": 0.25, "8": 0.25, "32": 0.20}
     ui:
       palette: "high_contrast"
       feedback: ["Focus!", "Fast moves!", "Good merge!", "Stay sharp!"]
@@ -112,58 +112,9 @@ blocks:
       music: "tempo_hard"
       sfx: "crisp"
 
-
-              # requires sfx hook
-
-  # ——— Tests after Hard ———
   - id: "tests_after_hard"
     type: "tests"
     tests: ["TLX","SAM","Stroop"]
-
-  # ——— Oddball Mode ———
-# ——— Oddball Mode ———
-  - id: "oddball_mode"
-    type: "play"
-    description: "Oddball task — visual attention test"
-    board_size: 4
-    goal_tile: 512
-    start_state:
-      classic: true
-    stop:
-      kind: "time"
-      value: 90
-    timer:
-      hard_cap_sec: 90
-      show_countdown: true
-    spawn:
-      rates: {"2": 0.9, "4": 0.1}   # normal spawn
-    ui:
-      palette: "bright_contrast"
-      feedback: ["Focus!", "Stay alert!", "Good catch!"]
-      animation_speed: "medium"
-    audio:
-      music: "tempo_medium"
-      sfx: "subtle_particles"
-    post_questions:
-    - type: "single"
-      id: "saw_flash"
-      text: "Did you notice the flashes?"
-      options: ["Yes", "No"]
-    - type: "scale"
-      id: "flash_count"
-      text: "How many flashes did you see?"
-      min: 0
-      max: 2
-      labels: ["0","1","2"]
-
-
-
-        # ——— Tests after Oddball ———
-  - id: "tests_after_oddball"
-    type: "tests"
-    tests: ["TLX", "SAM", "Stroop"]
-
-
 
 sequence:
   - baseline_rest
@@ -173,9 +124,9 @@ sequence:
   - tests_after_medium
   - hard_mode
   - tests_after_hard
-  - oddball_mode
-  - tests_after_oddball
 
 output:
   autosave_csv_on_block_end: true
-  filename_pattern: "{study_id}__{block_id}__{ts}.csv"
+  filename_pattern: "{study_id}__{block_id}__{kind}__{ts}.csv"
+  tests_filename_pattern: "{study_id}__{block_id}__{kind}__{ts}.csv"
+
