@@ -1,8 +1,47 @@
-// study_runner.js — v=2984 (medium awareness carry-over fix)
+// study_runner.js — v=2986+drive
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2986");
+console.log("study_runner loaded v=2986+drive");
+
+// ====== DRIVE UPLOAD CONFIG ======
+var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
+function driveEnabled() { return typeof DRIVE_WEBAPP_URL === "string" && DRIVE_WEBAPP_URL.startsWith("http"); }
+function anonId() {
+  const k = "study_anon_id";
+  let id = localStorage.getItem(k);
+  if (!id) {
+    id = (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) + "-" + Date.now().toString(36);
+    localStorage.setItem(k, id);
+  }
+  return id;
+}
+function randSessionId() {
+  return (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) + "-" + Date.now().toString(36);
+}
+function tsPrecise(){
+  var d=new Date();
+  function p(n){ return String(n).padStart(2,"0"); }
+  var ms=String(d.getMilliseconds()).padStart(3,"0");
+  return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+ms;
+}
+function postToDrive(files, extra){
+  if (!driveEnabled()) return;
+  try {
+    const payload = {
+      participant_id: anonId(),
+      session_id: extra && extra.session_id ? extra.session_id : randSessionId(),
+      files: files || {},
+      make_zip: false
+    };
+    fetch(DRIVE_WEBAPP_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(console.error);
+  } catch (e) { console.warn("Drive upload skipped:", e); }
+}
 
 document.addEventListener("DOMContentLoaded", function () {
   var s = document.createElement("style");
@@ -55,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
 /* ---- IMPORTANT: leading semicolon guards against ASI issues if a previous file ends with an IIFE ---- */
 ;(function () {
   var L = window.StudyLogger;
-  L.setContext({ participant_id: "P001", mode_id: "init" });
+  L.setContext({ participant_id: anonId(), mode_id: "init" });
   var Tests = window.TestsUI;
 
   // ---------- Overlay ----------
@@ -343,7 +382,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       function done(val){
         try {
-          // Save awareness answer to carry into the next tests block
           window.__pendingAwareness = { block_id: block.id, response: val };
           console.log("🟤 Awareness stored temporarily:", window.__pendingAwareness);
         } catch(e){ console.warn("Awareness temp store failed:", e); }
@@ -372,9 +410,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Track last finished play block + awareness flag
   var lastPlayBlockId = null;
-  var askedAwareness = window.__askedAwareness || false;
 
   // ---------- Per-block default overrides ----------
   function applyDefaultsForBlock(block){
@@ -403,7 +439,6 @@ document.addEventListener("DOMContentLoaded", function () {
   function runPlayBlock(cfg, block){
     return new Promise(function(resolve){
       applyDefaultsForBlock(block);
-      // Guard: ensure only the most recent play block logs moves.
       var playSessionToken = (Math.random().toString(36).slice(2) + Date.now().toString(36));
       window.__activePlayToken = playSessionToken;
 
@@ -427,8 +462,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (gm.actuator && typeof gm.actuator.clearMessage === "function") gm.actuator.clearMessage();
 
-      // context per block
-      L.setContext({ participant_id:"P001", mode_id: block.id });
+      L.setContext({ participant_id: anonId(), mode_id: block.id });
       L.newSession(block.id);
 
       var goalTile = isFinite(Number(block.goal_tile)) ? Number(block.goal_tile) : null;
@@ -450,11 +484,24 @@ document.addEventListener("DOMContentLoaded", function () {
       function clearScheduled(){ scheduled.forEach(function(id){ clearTimeout(id); }); scheduled = []; }
 
       function finalizeAndResolve(){
-        // Deactivate this block's token so lingering handlers skip logging.
         if (window.__activePlayToken === playSessionToken) { window.__activePlayToken = null; }
 
         lastPlayBlockId = block.id;
         hideGoalBadge();
+
+        // ==== DRIVE UPLOAD: moves + meta for this block ====
+        try {
+          var rows = L.moveRowsForExport().filter(function(r){ return r.mode_id===block.id; });
+          var csv  = L.toCSVMoves(rows);
+          var metaObj = {
+            study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
+            block_id: block.id,
+            app_version: "v2986+drive",
+            ts: new Date().toISOString(),
+            userAgent: navigator.userAgent
+          };
+          postToDrive({ "moves.csv": csv, "meta.json": metaObj }, { session_id: "S_"+tsPrecise()+"_"+block.id });
+        } catch(e){ console.warn("Drive upload (moves) failed:", e); }
 
         setTimeout(function(){ 
           resolve(L.moveRowsForExport().filter(function(r){ return r.mode_id===block.id; })); 
@@ -470,7 +517,6 @@ document.addEventListener("DOMContentLoaded", function () {
         hideGoalBadge();
         hide();
 
-        // Awareness prompt after medium_mode, then post-questions, then resolve
         if (block.id === "medium_mode") {
           askYesNoAwareness(block)
             .then(function(){ return askPostQuestions(block); })
@@ -480,13 +526,11 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
-      // Round countdown (if any)
       if ((block.stop && block.stop.kind==="time" && block.stop.value) || (block.timer && block.timer.hard_cap_sec)){
         var secs = Number((block.timer && block.timer.hard_cap_sec) || (block.stop && block.stop.value) || 0);
         cd = startCountdown(secs, function(){ stop("time_done"); });
       }
 
-      // Spawns override (respect YAML)
       var spawnRates = block && block.spawn && block.spawn.rates;
       var origAdd = gm.addRandomTile.bind(gm);
       gm.addRandomTile = function(){
@@ -496,7 +540,6 @@ document.addEventListener("DOMContentLoaded", function () {
         origAdd();
       };
 
-      // Apply start grid or prefill; else add exactly N initial tiles (default 1)
       var hadGrid = applyStartGrid(gm, block.start_state);
       if (!hadGrid) {
         var hadPrefillBefore = (block.start_state && block.start_state.prefill) ? true : false;
@@ -559,7 +602,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       };
 
-      // ---- Medium-mode flashes (oddball logic moved here) ----
+      // ---- Medium-mode flashes ----
       if (block.id === "medium_mode") {
         function getRandomTileEl(){
           var inners = Array.prototype.slice.call(document.querySelectorAll(".tile .tile-inner"));
@@ -582,10 +625,10 @@ document.addEventListener("DOMContentLoaded", function () {
   // ================= TESTS =================
   function runTestsBlock(cfg, block){
     return new Promise(function(resolve){
-      L.setContext({ participant_id:"P001", mode_id:block.id });
+      L.setContext({ participant_id: anonId(), mode_id:block.id });
       L.newSession(block.id);
 
-      // ✅ Carry over awareness from previous medium block into tests CSV
+      // Carry awareness to tests CSV
       if (window.__pendingAwareness) {
         var p = window.__pendingAwareness;
         try {
@@ -614,7 +657,7 @@ document.addEventListener("DOMContentLoaded", function () {
               } else { write(i, item); }
             });
           } else if (typeof res === "object") {
-            Object.keys(res).forEach(function(k){ write(k, res[k]); });
+            Object.keys(res).forEach(function(k){ write(k, last[k]); });
           } else {
             write("result", res);
           }
@@ -627,6 +670,20 @@ document.addEventListener("DOMContentLoaded", function () {
       }).catch(function(e){
         console.error("TestsUI.runTests error:", e);
       }).finally(function(){
+        // ==== DRIVE UPLOAD: tests + meta for this block ====
+        try {
+          var rows = L.testRowsForExport().filter(function(r){ return r.mode_id===block.id; });
+          var csv  = L.toCSVTests(rows);
+          var metaObj = {
+            study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
+            block_id: block.id,
+            app_version: "v2986+drive",
+            ts: new Date().toISOString(),
+            userAgent: navigator.userAgent
+          };
+          postToDrive({ "tests.csv": csv, "meta.json": metaObj }, { session_id: "S_"+tsPrecise()+"_"+block.id });
+        } catch(e){ console.warn("Drive upload (tests) failed:", e); }
+
         resolve();
       });
     });
@@ -640,12 +697,6 @@ document.addEventListener("DOMContentLoaded", function () {
     var idx = ROUND_ORDER.indexOf(nextId); if (idx === -1) return null;
     var n = idx+1, total = ROUND_ORDER.length;
     return { title: "Round " + n + "/" + total, body: "Starting in 3 seconds..." };
-  }
-  function tsPrecise(){
-    var d=new Date();
-    function p(n){ return String(n).padStart(2,"0"); }
-    var ms=String(d.getMilliseconds()).padStart(3,"0");
-    return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+ms;
   }
   function buildName(pattern, meta, blockId, kind){
     var base=(pattern||"{study_id}__{block_id}__{kind}__{ts}.csv")
@@ -710,11 +761,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ---------- Boot ----------
   loadConfigSmart().then(function(cfg){
-    L.setContext({ participant_id:"P001" });
+    L.setContext({ participant_id: anonId() });
     return runStudy(cfg);
   }).catch(function(e){
     console.error(e);
     show("Config error","Could not load public/block.yaml");
   });
 
-})();  // <— end IIFE, safe due to leading semicolon
+})(); // end IIFE
