@@ -1,12 +1,28 @@
-// study_runner.js — v=2986+drive
+// study_runner.js — v=2986+drive+autoLabel+overlayFull
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2986+drive");
+console.log("study_runner loaded v=2916");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
 function driveEnabled() { return typeof DRIVE_WEBAPP_URL === "string" && DRIVE_WEBAPP_URL.startsWith("http"); }
+
+// ====== PARTICIPANT LABEL (Participant_1, 2, …) ======
+function participantLabel(){
+  let label = localStorage.getItem("participant_label");
+  if (!label) {
+    let count = localStorage.getItem("participant_counter");
+    if (!count) count = 1;
+    else count = Number(count) + 1;
+    localStorage.setItem("participant_counter", count);
+    label = "Participant_" + count;
+    localStorage.setItem("participant_label", label);
+  }
+  return label;
+}
+
+// ====== ANON + SESSION ======
 function anonId() {
   const k = "study_anon_id";
   let id = localStorage.getItem(k);
@@ -25,11 +41,14 @@ function tsPrecise(){
   var ms=String(d.getMilliseconds()).padStart(3,"0");
   return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+ms;
 }
+
+// ====== UPLOAD TO DRIVE ======
 function postToDrive(files, extra){
   if (!driveEnabled()) return;
   try {
     const payload = {
       participant_id: anonId(),
+      participant_label: participantLabel(),
       session_id: extra && extra.session_id ? extra.session_id : randSessionId(),
       files: files || {},
       make_zip: false
@@ -43,6 +62,7 @@ function postToDrive(files, extra){
   } catch (e) { console.warn("Drive upload skipped:", e); }
 }
 
+// ====== FULL OVERLAY + UI STYLES ======
 document.addEventListener("DOMContentLoaded", function () {
   var s = document.createElement("style");
   s.textContent = [
@@ -91,19 +111,20 @@ document.addEventListener("DOMContentLoaded", function () {
   document.head.appendChild(s);
 });
 
+// ========================== MAIN ==========================
 ;(function () {
   var L = window.StudyLogger;
   L.setContext({ participant_id: anonId(), mode_id: "init" });
   var Tests = window.TestsUI;
 
-  // ---------- Overlay ----------
+  // ---------- Overlay helpers ----------
   var overlay = document.getElementById("study-overlay");
   var titleEl = document.getElementById("study-title");
   var bodyEl  = document.getElementById("study-body");
   function show(t, s){ titleEl.textContent = t; bodyEl.textContent = s || ""; overlay.style.display = "grid"; }
   function hide(){ overlay.style.display = "none"; }
 
-  // ---------- YAML ----------
+  // ---------- YAML loader ----------
   function loadConfigSmart() {
     return new Promise(function(resolve, reject){
       function go(){ 
@@ -152,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function () {
       + '<div class="tile-container"></div>';
   }
 
-  // ---------- Timer/Goal badges ----------
+  // ---------- Badges ----------
   function getTimerEl() {
     var el = document.getElementById("study-timer");
     if (!el) { el = document.createElement("div"); el.id = "study-timer"; document.body.appendChild(el); }
@@ -409,8 +430,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  var lastPlayBlockId = null;
-
   // ---------- Per-block default overrides ----------
   function applyDefaultsForBlock(block){
     if (block && block.id === "medium_mode") {
@@ -485,7 +504,6 @@ document.addEventListener("DOMContentLoaded", function () {
       function finalizeAndResolve(){
         if (window.__activePlayToken === playSessionToken) { window.__activePlayToken = null; }
 
-        lastPlayBlockId = block.id;
         hideGoalBadge();
 
         // ==== DRIVE UPLOAD: moves + meta for this block ====
@@ -495,7 +513,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2986+drive",
+            app_version: "v2986+drive+autoLabel+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
@@ -656,7 +674,8 @@ document.addEventListener("DOMContentLoaded", function () {
               } else { write(i, item); }
             });
           } else if (typeof res === "object") {
-            Object.keys(res).forEach(function(k){ write(k, last[k]); });
+            var last = res; // if runTests returns object
+            Object.keys(last).forEach(function(k){ write(k, last[k]); });
           } else {
             write("result", res);
           }
@@ -676,7 +695,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2986+drive",
+            app_version: "v2986+drive+autoLabel+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
@@ -734,7 +753,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var rows = L.moveRowsForExport().filter(function(r){ return r.mode_id===id; });
                 var csv  = L.toCSVMoves(rows);
                 var name = buildName(output.filename_pattern, meta, id, "moves");
-                // L.download(name, csv);  // <- disabled: no browser auto-download
+                // L.download(name, csv);  // disabled: no browser auto-download
               }
               loop(i+1);
             });
@@ -746,7 +765,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var rows = L.testRowsForExport().filter(function(r){ return r.mode_id===id; });
                 var csv  = L.toCSVTests(rows);
                 var name = buildName(output.tests_filename_pattern, meta, id, "tests");
-                // L.download(name, csv);  // <- disabled: no browser auto-download
+                // L.download(name, csv);  // disabled: no browser auto-download
               }
               loop(i+1);
             });
