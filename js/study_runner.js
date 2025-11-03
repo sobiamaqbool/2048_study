@@ -2,25 +2,33 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2916");
+console.log("study_runner loaded v=2961");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
 function driveEnabled() { return typeof DRIVE_WEBAPP_URL === "string" && DRIVE_WEBAPP_URL.startsWith("http"); }
 
 // ====== PARTICIPANT LABEL (Participant_1, 2, …) ======
-function participantLabel(){
+function participantLabel() {
   let label = localStorage.getItem("participant_label");
+  
   if (!label) {
-    let count = localStorage.getItem("participant_counter");
-    if (!count) count = 1;
-    else count = Number(count) + 1;
+    // Get current count or start at 1
+    let count = parseInt(localStorage.getItem("participant_counter") || "0", 10) + 1;
     localStorage.setItem("participant_counter", count);
-    label = "Participant_" + count;
+    
+    // Format like P01, P02, P03...
+    label = "P" + String(count).padStart(2, "0");
     localStorage.setItem("participant_label", label);
   }
+
   return label;
 }
+
+// Example use:
+const PARTICIPANT_ID = participantLabel();
+console.log("Participant ID:", PARTICIPANT_ID);
+
 
 // ====== ANON + SESSION ======
 function anonId() {
