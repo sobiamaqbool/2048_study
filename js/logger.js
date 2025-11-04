@@ -2,7 +2,7 @@
 // Minimal move logs + tests router via log()
 
 window.StudyLogger = (() => {
-  console.info("StudyLogger v3.11");
+  console.info("StudyLogger v3.10");
 
   // ---- ids ----
   const getOrMakeAnonId = () => {
@@ -33,6 +33,7 @@ window.StudyLogger = (() => {
   };
 
   let context = {
+    participant_id: "P001",
     anon_id: getOrMakeAnonId(),
     session_id: newSessionId(),
     mode_id: "", // e.g., "easy_mode" | "hard_mode"
@@ -41,6 +42,7 @@ window.StudyLogger = (() => {
   // ---- headers ----
   const MOVE_HEADERS = [
     "timestamp",
+    "participant_id",
     "anon_id",
     "session_id",
     "mode_id",
@@ -52,6 +54,7 @@ window.StudyLogger = (() => {
   ];
   const TEST_HEADERS = [
     "timestamp",
+    "participant_id",
     "anon_id",
     "session_id",
     "mode_id",
@@ -74,6 +77,7 @@ window.StudyLogger = (() => {
   function normalizeMove(obj) {
     const base = {
       timestamp: nowISO(),
+      participant_id: context.participant_id,
       anon_id: context.anon_id,
       session_id: context.session_id,
       mode_id: context.mode_id,
@@ -95,6 +99,7 @@ window.StudyLogger = (() => {
   function normalizeTest(obj) {
     const base = {
       timestamp: nowISO(),
+      participant_id: context.participant_id,
       anon_id: context.anon_id,
       session_id: context.session_id,
       mode_id: context.mode_id,
