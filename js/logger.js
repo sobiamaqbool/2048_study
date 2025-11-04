@@ -2,7 +2,7 @@
 // Minimal move logs + tests router via log()
 
 window.StudyLogger = (() => {
-  console.info("StudyLogger v3.10");
+  console.info("StudyLogger v3.11");
 
   // ---- ids ----
   const getOrMakeAnonId = () => {
