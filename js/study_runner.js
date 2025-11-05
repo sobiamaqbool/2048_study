@@ -1,8 +1,8 @@
-// study_runner.js — v=2986+drive+autoLabel+overlayFull
+// study_runner.js — v=2987+authChoice+drive+overlayFull
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2961");
+console.log("study_runner loaded v=2987");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -11,24 +11,18 @@ function driveEnabled() { return typeof DRIVE_WEBAPP_URL === "string" && DRIVE_W
 // ====== PARTICIPANT LABEL (Participant_1, 2, …) ======
 function participantLabel() {
   let label = localStorage.getItem("participant_label");
-  
   if (!label) {
-    // Get current count or start at 1
     let count = parseInt(localStorage.getItem("participant_counter") || "0", 10) + 1;
     localStorage.setItem("participant_counter", count);
-    
-    // Format like P01, P02, P03...
-    label = "P" + String(count).padStart(2, "0");
+    label = "P" + String(count).padStart(2, "0"); // P01, P02, ...
     localStorage.setItem("participant_label", label);
   }
-
   return label;
 }
 
 // Example use:
 const PARTICIPANT_ID = participantLabel();
 console.log("Participant ID:", PARTICIPANT_ID);
-
 
 // ====== ANON + SESSION ======
 function anonId() {
@@ -55,7 +49,7 @@ function postToDrive(files, extra){
   if (!driveEnabled()) return;
   try {
     const payload = {
-      participant_id: anonId(),
+      participant_id: anonId(),             // stays anon unless you wire Google
       participant_label: participantLabel(),
       session_id: extra && extra.session_id ? extra.session_id : randSessionId(),
       files: files || {},
@@ -106,7 +100,7 @@ document.addEventListener("DOMContentLoaded", function () {
     "#study-goal.pulse{animation:goalPulse .9s ease-out 1;}",
     "@keyframes goalPulse{0%{transform:scale(0.92);box-shadow:0 0 0 0 rgba(217,203,184,.5);}70%{transform:scale(1);box-shadow:0 0 0 12px rgba(217,203,184,0);}100%{transform:scale(1);box-shadow:none;}}",
 
-    /* Awareness mini-card */
+    /* Awareness / Auth mini-card */
     "#yn-card{display:flex;flex-direction:column;gap:12px;align-items:center;min-width:280px;max-width:420px;background:#4B3826;border:1px solid #2F2114;border-radius:14px;padding:16px 18px;box-shadow:0 16px 40px rgba(0,0,0,.35);}",
     "#yn-title{font:800 20px/1.2 system-ui;color:#fff;text-align:center;}",
     "#yn-sub{font:500 14px/1.4 system-ui;color:#f3eee8;opacity:.95;text-align:center;}",
@@ -131,6 +125,89 @@ document.addEventListener("DOMContentLoaded", function () {
   var bodyEl  = document.getElementById("study-body");
   function show(t, s){ titleEl.textContent = t; bodyEl.textContent = s || ""; overlay.style.display = "grid"; }
   function hide(){ overlay.style.display = "none"; }
+
+  // ==== AUTH CHOICE (Google or Guest) ====
+  const ENABLE_GOOGLE_LOGIN = true;        // flip false to hide Google option
+  const REQUIRE_EMAIL_IN_LOGS = false;     // keep false for privacy
+
+  function ensureHost_() {
+    let host = document.getElementById("study-form");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "study-form";
+      (document.getElementById("study-overlay") || document.body).appendChild(host);
+    }
+    return host;
+  }
+
+  // Safe stub: replace with real Firebase sign-in if/when you wire it.
+  async function optionalGoogleSignIn(){
+    // If Firebase is wired, call your real sign-in flow and return
+    // { google_uid, displayName, email } then persist to localStorage.
+    // For now, throw to keep the dialog open unless user picks Guest.
+    throw new Error("Google sign-in not configured.");
+  }
+
+  function askAuthChoicePersistent() {
+    if (!ENABLE_GOOGLE_LOGIN) return Promise.resolve({ choice: "guest" });
+
+    // If already linked before, skip prompt (optional)
+    if (localStorage.getItem("anon_link_google_uid")) {
+      return Promise.resolve({ choice: "google", data: {
+        google_uid: localStorage.getItem("anon_link_google_uid"),
+        displayName: localStorage.getItem("google_displayName") || null,
+        email: localStorage.getItem("google_email") || null
+      }});
+    }
+
+    return new Promise((resolve) => {
+      const host = ensureHost_();
+      host.innerHTML = `
+        <div id="yn-card">
+          <div id="yn-title">How would you like to continue?</div>
+          <div id="yn-sub">Optional: sign in for a stable ID across devices, or play as Guest.</div>
+          <div id="yn-actions" style="width:100%">
+            <button class="yn-btn" id="btn-google">Sign in with Google</button>
+            <button class="yn-btn" id="btn-guest">Play as Guest</button>
+          </div>
+          <div id="yn-msg" style="font:600 12px system-ui;opacity:.9;margin-top:8px;"></div>
+        </div>
+      `;
+      show("", ""); // show blocking overlay
+
+      const $msg = host.querySelector("#yn-msg");
+      const setMsg = (t) => { $msg.textContent = t || ""; };
+
+      const finish = (choice, data) => {
+        try { host.remove(); } catch(_) {}
+        hide();
+        resolve({ choice, data: data || null });
+      };
+
+      document.getElementById("btn-guest").onclick = () => {
+        try { window.StudyLogger?.logTest?.("init", "auth_choice", "flow", "guest"); } catch(_){}
+        finish("guest");
+      };
+
+      document.getElementById("btn-google").onclick = async () => {
+        setMsg("Opening Google…");
+        try {
+          const info = await optionalGoogleSignIn();  // <- replace with real flow later
+          if (info && info.google_uid) {
+            localStorage.setItem("anon_link_google_uid", info.google_uid);
+            if (info.displayName) localStorage.setItem("google_displayName", info.displayName);
+            if (REQUIRE_EMAIL_IN_LOGS && info.email) localStorage.setItem("google_email", info.email);
+          }
+          try { window.StudyLogger?.logTest?.("init", "auth_choice", "flow", "google"); } catch(_){}
+          finish("google", info);
+        } catch (e) {
+          console.warn("Google sign-in failed:", e);
+          setMsg("Sign-in failed. You can try again or Play as Guest.");
+          // keep dialog open; user can still choose Guest
+        }
+      };
+    });
+  }
 
   // ---------- YAML loader ----------
   function loadConfigSmart() {
@@ -411,7 +488,7 @@ document.addEventListener("DOMContentLoaded", function () {
       function done(val){
         try {
           window.__pendingAwareness = { block_id: block.id, response: val };
-          console.log(" Awareness stored temporarily:", window.__pendingAwareness);
+          console.log("Awareness stored temporarily:", window.__pendingAwareness);
         } catch(e){ console.warn("Awareness temp store failed:", e); }
 
         try { window.removeEventListener("keydown", onk, true); } catch(_){}
@@ -521,7 +598,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2986+drive+autoLabel+overlayFull",
+            app_version: "v2987+authChoice+drive+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
@@ -634,15 +711,16 @@ document.addEventListener("DOMContentLoaded", function () {
           return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
         }
         function flashTileEl(el, ms){
-          ms = ms || 1000;
+          ms = ms || 1000; // brighter duration per your request
           if(!el) return;
           el.classList.add("flash-brief");
           setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
         }
         function jitter(base, spread){ spread = spread || 2000; return Math.max(0, base + Math.floor((Math.random()*spread) - spread/2)); }
 
-        schedule(function(){ flashTileEl(getRandomTileEl(), 700); }, jitter(15000, 2500));
-        schedule(function(){ flashTileEl(getRandomTileEl(), 700); }, jitter(65000, 3000));
+        // use 1000ms for both scheduled flashes
+        schedule(function(){ flashTileEl(getRandomTileEl(), 1000); }, jitter(15000, 2500));
+        schedule(function(){ flashTileEl(getRandomTileEl(), 1000); }, jitter(65000, 3000));
       }
     });
   }
@@ -703,7 +781,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2986+drive+autoLabel+overlayFull",
+            app_version: "v2987+authChoice+drive+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
@@ -739,8 +817,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function runStudy(config){
     return new Promise(function(resolve){
       var meta = config.meta, blocks = config.blocks, sequence = config.sequence, output = config.output;
-      var map = {};
-      blocks.forEach(function(b){ map[b.id]=b; });
+      var map = {}; blocks.forEach(function(b){ map[b.id]=b; });
       (function loop(i){
         if (i>=sequence.length){ show("Study complete","Thank you!"); resolve(); return; }
         var id=sequence[i], b=map[id];
@@ -786,7 +863,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ---------- Boot ----------
-  loadConfigSmart().then(function(cfg){
+  loadConfigSmart().then(async function(cfg){
+    // Prompt once at start: Google vs Guest (blocking overlay)
+    await askAuthChoicePersistent();
+    // Set base context and start
     L.setContext({ participant_id: anonId() });
     return runStudy(cfg);
   }).catch(function(e){
