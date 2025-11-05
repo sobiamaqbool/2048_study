@@ -411,7 +411,7 @@ document.addEventListener("DOMContentLoaded", function () {
       function done(val){
         try {
           window.__pendingAwareness = { block_id: block.id, response: val };
-          console.log("🟤 Awareness stored temporarily:", window.__pendingAwareness);
+          console.log(" Awareness stored temporarily:", window.__pendingAwareness);
         } catch(e){ console.warn("Awareness temp store failed:", e); }
 
         try { window.removeEventListener("keydown", onk, true); } catch(_){}
@@ -634,7 +634,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
         }
         function flashTileEl(el, ms){
-          ms = ms || 700;
+          ms = ms || 1000;
           if(!el) return;
           el.classList.add("flash-brief");
           setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
