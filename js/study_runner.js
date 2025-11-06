@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2987");
+console.log("study_runner loaded v=2957");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -123,8 +123,15 @@ document.addEventListener("DOMContentLoaded", function () {
   var overlay = document.getElementById("study-overlay");
   var titleEl = document.getElementById("study-title");
   var bodyEl  = document.getElementById("study-body");
-  function show(t, s){ titleEl.textContent = t; bodyEl.textContent = s || ""; overlay.style.display = "grid"; }
-  function hide(){ overlay.style.display = "none"; }
+function show(t, s){
+  if (titleEl) titleEl.textContent = t || "";
+  if (bodyEl)  bodyEl.textContent  = s || "";
+  if (overlay) overlay.style.display = "grid";
+}
+function hide(){
+  if (overlay) overlay.style.display = "none";
+}
+
 
   // ==== AUTH CHOICE (Google or Guest) ====
   const ENABLE_GOOGLE_LOGIN = true;        // flip false to hide Google option
@@ -141,12 +148,11 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Safe stub: replace with real Firebase sign-in if/when you wire it.
-  async function optionalGoogleSignIn(){
-    // If Firebase is wired, call your real sign-in flow and return
-    // { google_uid, displayName, email } then persist to localStorage.
-    // For now, throw to keep the dialog open unless user picks Guest.
-    throw new Error("Google sign-in not configured.");
-  }
+// Use the real function from auth.js if present; otherwise fall back to a stub that keeps the dialog open.
+const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
+  throw new Error("Google sign-in not configured.");
+});
+
 
   function askAuthChoicePersistent() {
     if (!ENABLE_GOOGLE_LOGIN) return Promise.resolve({ choice: "guest" });
@@ -573,7 +579,8 @@ document.addEventListener("DOMContentLoaded", function () {
         ? '<span style="display:block;margin-top:6px;font:600 18px/1.3 system-ui;color:#fff;">Goal: reach ' + goalTile + '</span>'
         : "Press arrow keys to play";
       show(block.description || block.id, "");
-      bodyEl.innerHTML = introMsg;
+      if (bodyEl) bodyEl.innerHTML = introMsg;
+
 
       var ov = document.getElementById("study-overlay");
       if (ov) ov.style.pointerEvents = "none";
