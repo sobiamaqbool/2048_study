@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2988");
+console.log("study_runner loaded v=3085");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -131,13 +131,16 @@ document.addEventListener("DOMContentLoaded", function () {
   var overlay = document.getElementById("study-overlay");
   var titleEl = document.getElementById("study-title");
   var bodyEl  = document.getElementById("study-body");
+  var boxEl   = document.getElementById("study-box"); 
   function show(t, s){
     if (titleEl) titleEl.textContent = t || "";
     if (bodyEl)  bodyEl.textContent  = s || "";
     if (overlay) overlay.style.display = "grid";
+    if (boxEl)   boxEl.style.display = (t || s) ? "" : "none";
   }
   function hide(){
     if (overlay) overlay.style.display = "none";
+    if (boxEl)   boxEl.style.display = "";
   }
 
   // ==== AUTH CHOICE (Google or Guest) ====
