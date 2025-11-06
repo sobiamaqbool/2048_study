@@ -1,12 +1,14 @@
-// study_runner.js — v=2987+authChoice+drive+overlayFull
+// study_runner.js — v=2988+stableId+authChoice+drive+overlayFull
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2957");
+console.log("study_runner loaded v=2988");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
-function driveEnabled() { return typeof DRIVE_WEBAPP_URL === "string" && DRIVE_WEBAPP_URL.startsWith("http"); }
+function driveEnabled() {
+  return typeof DRIVE_WEBAPP_URL === "string" && DRIVE_WEBAPP_URL.startsWith("http");
+}
 
 // ====== PARTICIPANT LABEL (Participant_1, 2, …) ======
 function participantLabel() {
@@ -25,6 +27,12 @@ const PARTICIPANT_ID = participantLabel();
 console.log("Participant ID:", PARTICIPANT_ID);
 
 // ====== ANON + SESSION ======
+// Prefer Google UID if known (persists in localStorage), else device anonId()
+function stableParticipantId() {
+  const uid = localStorage.getItem("anon_link_google_uid");
+  return uid ? `google:${uid}` : `anon:${anonId()}`;
+}
+
 function anonId() {
   const k = "study_anon_id";
   let id = localStorage.getItem(k);
@@ -49,9 +57,9 @@ function postToDrive(files, extra){
   if (!driveEnabled()) return;
   try {
     const payload = {
-      participant_id: anonId(),             // stays anon unless you wire Google
+      participant_id: stableParticipantId(),     // <<< stable ID (Google UID if set, else anon)
       participant_label: participantLabel(),
-      session_id: extra && extra.session_id ? extra.session_id : randSessionId(),
+      session_id: (extra && extra.session_id) ? extra.session_id : randSessionId(),
       files: files || {},
       make_zip: false
     };
@@ -116,22 +124,21 @@ document.addEventListener("DOMContentLoaded", function () {
 // ========================== MAIN ==========================
 ;(function () {
   var L = window.StudyLogger;
-  L.setContext({ participant_id: anonId(), mode_id: "init" });
+  L.setContext({ participant_id: stableParticipantId(), mode_id: "init" });
   var Tests = window.TestsUI;
 
   // ---------- Overlay helpers ----------
   var overlay = document.getElementById("study-overlay");
   var titleEl = document.getElementById("study-title");
   var bodyEl  = document.getElementById("study-body");
-function show(t, s){
-  if (titleEl) titleEl.textContent = t || "";
-  if (bodyEl)  bodyEl.textContent  = s || "";
-  if (overlay) overlay.style.display = "grid";
-}
-function hide(){
-  if (overlay) overlay.style.display = "none";
-}
-
+  function show(t, s){
+    if (titleEl) titleEl.textContent = t || "";
+    if (bodyEl)  bodyEl.textContent  = s || "";
+    if (overlay) overlay.style.display = "grid";
+  }
+  function hide(){
+    if (overlay) overlay.style.display = "none";
+  }
 
   // ==== AUTH CHOICE (Google or Guest) ====
   const ENABLE_GOOGLE_LOGIN = true;        // flip false to hide Google option
@@ -147,12 +154,10 @@ function hide(){
     return host;
   }
 
-  // Safe stub: replace with real Firebase sign-in if/when you wire it.
-// Use the real function from auth.js if present; otherwise fall back to a stub that keeps the dialog open.
-const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
-  throw new Error("Google sign-in not configured.");
-});
-
+  // Use the real function from auth.js if present; otherwise a stub that keeps the dialog open.
+  const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
+    throw new Error("Google sign-in not configured.");
+  });
 
   function askAuthChoicePersistent() {
     if (!ENABLE_GOOGLE_LOGIN) return Promise.resolve({ choice: "guest" });
@@ -198,7 +203,7 @@ const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
       document.getElementById("btn-google").onclick = async () => {
         setMsg("Opening Google…");
         try {
-          const info = await optionalGoogleSignIn();  // <- replace with real flow later
+          const info = await optionalGoogleSignIn();
           if (info && info.google_uid) {
             localStorage.setItem("anon_link_google_uid", info.google_uid);
             if (info.displayName) localStorage.setItem("google_displayName", info.displayName);
@@ -571,7 +576,7 @@ const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
 
       if (gm.actuator && typeof gm.actuator.clearMessage === "function") gm.actuator.clearMessage();
 
-      L.setContext({ participant_id: anonId(), mode_id: block.id });
+      L.setContext({ participant_id: stableParticipantId(), mode_id: block.id });
       L.newSession(block.id);
 
       var goalTile = isFinite(Number(block.goal_tile)) ? Number(block.goal_tile) : null;
@@ -580,7 +585,6 @@ const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
         : "Press arrow keys to play";
       show(block.description || block.id, "");
       if (bodyEl) bodyEl.innerHTML = introMsg;
-
 
       var ov = document.getElementById("study-overlay");
       if (ov) ov.style.pointerEvents = "none";
@@ -595,7 +599,6 @@ const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
 
       function finalizeAndResolve(){
         if (window.__activePlayToken === playSessionToken) { window.__activePlayToken = null; }
-
         hideGoalBadge();
 
         // ==== DRIVE UPLOAD: moves + meta for this block ====
@@ -605,7 +608,7 @@ const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2987+authChoice+drive+overlayFull",
+            app_version: "v2988+stableId+authChoice+drive+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
@@ -735,7 +738,7 @@ const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
   // ================= TESTS =================
   function runTestsBlock(cfg, block){
     return new Promise(function(resolve){
-      L.setContext({ participant_id: anonId(), mode_id:block.id });
+      L.setContext({ participant_id: stableParticipantId(), mode_id:block.id });
       L.newSession(block.id);
 
       // Carry awareness to tests CSV
@@ -788,7 +791,7 @@ const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2987+authChoice+drive+overlayFull",
+            app_version: "v2988+stableId+authChoice+drive+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
@@ -874,7 +877,7 @@ const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
     // Prompt once at start: Google vs Guest (blocking overlay)
     await askAuthChoicePersistent();
     // Set base context and start
-    L.setContext({ participant_id: anonId() });
+    L.setContext({ participant_id: stableParticipantId() });
     return runStudy(cfg);
   }).catch(function(e){
     console.error(e);
