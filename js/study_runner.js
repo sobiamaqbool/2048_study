@@ -176,7 +176,6 @@ document.addEventListener("DOMContentLoaded", function () {
       host.innerHTML = `
         <div id="yn-card">
           <div id="yn-title">How would you like to continue?</div>
-          <div id="yn-sub">Optional: sign in for a stable ID across devices, or play as Guest.</div>
           <div id="yn-actions" style="width:100%">
             <button class="yn-btn" id="btn-google">Sign in with Google</button>
             <button class="yn-btn" id="btn-guest">Play as Guest</button>
@@ -721,7 +720,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
         }
         function flashTileEl(el, ms){
-          ms = ms || 1000; // brighter duration per your request
+          ms = ms || 1300; // brighter duration per your request
           if(!el) return;
           el.classList.add("flash-brief");
           setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
