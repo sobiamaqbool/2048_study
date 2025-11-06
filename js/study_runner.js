@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=3085");
+console.log("study_runner loaded v=3086");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -631,14 +631,15 @@ document.addEventListener("DOMContentLoaded", function () {
         hideGoalBadge();
         hide();
 
-        if (block.id === "medium_mode") {
-          askYesNoAwareness(block)
-            .then(function(){ return askPostQuestions(block); })
-            .then(finalizeAndResolve);
-        } else {
-          askPostQuestions(block).then(finalizeAndResolve);
-        }
-      }
+        // ask awareness after EASY and MEDIUM rounds, then post-questions, then resolve
+if (block.id === "easy_mode" || block.id === "medium_mode") {
+  askYesNoAwareness(block)
+    .then(function(){ return askPostQuestions(block); })
+    .then(finalizeAndResolve);
+} else {
+  askPostQuestions(block).then(finalizeAndResolve);
+}
+
 
       if ((block.stop && block.stop.kind==="time" && block.stop.value) || (block.timer && block.timer.hard_cap_sec)){
         var secs = Number((block.timer && block.timer.hard_cap_sec) || (block.stop && block.stop.value) || 0);
@@ -744,14 +745,20 @@ document.addEventListener("DOMContentLoaded", function () {
       L.newSession(block.id);
 
       // Carry awareness to tests CSV
-      if (window.__pendingAwareness) {
-        var p = window.__pendingAwareness;
-        try {
-          L.logTest(p.block_id, "noticed_color_change", "medium_awareness", p.response);
-          console.log("✅ Awareness carried into tests:", p.response);
-        } catch(e){ console.warn("carry logTest failed:", e); }
-        window.__pendingAwareness = null;
-      }
+      // Carry awareness to THIS tests CSV (write under current tests block id)
+if (window.__pendingAwareness) {
+  var p = window.__pendingAwareness; // { block_id, response }
+  try {
+    // mode_id = current tests block; include source block in item id
+    var itemId = "noticed_color_change_from_" + (p.block_id || "unknown");
+    L.logTest(block.id, itemId, "awareness", p.response);
+    console.log("Awareness carried from", p.block_id, ":", p.response);
+  } catch (e) {
+    console.warn("carry logTest failed:", e);
+  }
+  window.__pendingAwareness = null;
+}
+
 
       Promise.resolve().then(function(){
         return Tests && typeof Tests.runTests==="function"
