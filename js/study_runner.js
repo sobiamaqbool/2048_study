@@ -1,8 +1,8 @@
-// study_runner.js — v=2988+stableId+authChoice+drive+overlayFull
+// study_runner.js — v=2989+stableId+authChoice+drive+overlayFull
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2988");
+console.log("study_runner loaded v=2989");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -57,7 +57,7 @@ function postToDrive(files, extra){
   if (!driveEnabled()) return;
   try {
     const payload = {
-      participant_id: stableParticipantId(),     // <<< stable ID (Google UID if set, else anon)
+      participant_id: stableParticipantId(),     // stable ID (Google UID if set, else anon)
       participant_label: participantLabel(),
       session_id: (extra && extra.session_id) ? extra.session_id : randSessionId(),
       files: files || {},
@@ -131,7 +131,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var overlay = document.getElementById("study-overlay");
   var titleEl = document.getElementById("study-title");
   var bodyEl  = document.getElementById("study-body");
-  var boxEl   = document.getElementById("study-box"); 
+  var boxEl   = document.getElementById("study-box");
   function show(t, s){
     if (titleEl) titleEl.textContent = t || "";
     if (bodyEl)  bodyEl.textContent  = s || "";
@@ -540,6 +540,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!isFinite(Number(block.timer.hard_cap_sec))) block.timer.hard_cap_sec = 90;
       block.stop = { kind: "time", value: block.timer.hard_cap_sec };
 
+    // prefill 35% + spawn bias (2s more frequent)
       block.start_state = block.start_state || {};
       var pf = block.start_state.prefill || {};
       if (!isFinite(Number(pf.fill_ratio))) pf.fill_ratio = 0.35;
@@ -610,7 +611,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2988+stableId+authChoice+drive+overlayFull",
+            app_version: "v2989+stableId+authChoice+drive+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
@@ -631,7 +632,8 @@ document.addEventListener("DOMContentLoaded", function () {
         hideGoalBadge();
         hide();
 
-        if (block.id === "medium_mode") {
+        // 👇 awareness card for BOTH easy and medium
+        if (block.id === "medium_mode" || block.id === "easy_mode") {
           askYesNoAwareness(block)
             .then(function(){ return askPostQuestions(block); })
             .then(finalizeAndResolve);
@@ -723,14 +725,13 @@ document.addEventListener("DOMContentLoaded", function () {
           return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
         }
         function flashTileEl(el, ms){
-          ms = ms || 1300; // brighter duration per your request
+          ms = ms || 1300; // brighter duration
           if(!el) return;
           el.classList.add("flash-brief");
           setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
         }
         function jitter(base, spread){ spread = spread || 2000; return Math.max(0, base + Math.floor((Math.random()*spread) - spread/2)); }
 
-        // use 1000ms for both scheduled flashes
         schedule(function(){ flashTileEl(getRandomTileEl(), 1000); }, jitter(15000, 2500));
         schedule(function(){ flashTileEl(getRandomTileEl(), 1000); }, jitter(65000, 3000));
       }
@@ -747,8 +748,14 @@ document.addEventListener("DOMContentLoaded", function () {
       if (window.__pendingAwareness) {
         var p = window.__pendingAwareness;
         try {
-          L.logTest(p.block_id, "noticed_color_change", "medium_awareness", p.response);
-          console.log("✅ Awareness carried into tests:", p.response);
+          // 👇 log under the CURRENT tests block; keep origin in the item id
+          L.logTest(
+            block.id,
+            "noticed_color_change_from_" + p.block_id,
+            "awareness",
+            p.response
+          );
+          console.log("✅ Awareness carried into tests:", p.response, "from", p.block_id, "→", block.id);
         } catch(e){ console.warn("carry logTest failed:", e); }
         window.__pendingAwareness = null;
       }
@@ -793,7 +800,7 @@ document.addEventListener("DOMContentLoaded", function () {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2988+stableId+authChoice+drive+overlayFull",
+            app_version: "v2989+stableId+authChoice+drive+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
