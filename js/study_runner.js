@@ -52,6 +52,50 @@ function tsPrecise(){
   return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"_"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+ms;
 }
 
+// --- Remove a column from a CSV by name (handles quoted cells) ---
+function csvStripColumn(csv, colName){
+  if (!csv) return csv;
+  const lines = csv.split(/\r?\n/);
+  if (!lines.length) return csv;
+
+  const split = (s) => {
+    const out = []; let cur = ""; let inq = false;
+    for (let i=0;i<s.length;i++){
+      const ch=s[i];
+      if (ch === '"'){
+        if (inq && s[i+1] === '"'){ cur += '"'; i++; }
+        else { inq = !inq; }
+      } else if (ch === ',' && !inq){
+        out.push(cur); cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out;
+  };
+  const join = (arr) => arr.map(v => {
+    v = (v==null) ? "" : String(v);
+    const need = /[",\n]/.test(v);
+    return need ? `"${v.replace(/"/g,'""')}"` : v;
+  }).join(',');
+
+  const header = split(lines[0]);
+  const idx = header.indexOf(colName);
+  if (idx === -1) return csv; // nothing to remove
+
+  header.splice(idx,1);
+  const out = [join(header)];
+  for (let i=1;i<lines.length;i++){
+    if (lines[i] === "") { out.push(""); continue; }
+    const cells = split(lines[i]);
+    if (cells.length > idx) cells.splice(idx,1);
+    out.push(join(cells));
+  }
+  return out.join('\n');
+}
+
+
 // ====== UPLOAD TO DRIVE ======
 function postToDrive(files, extra){
   if (!driveEnabled()) return;
@@ -608,6 +652,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
           var rows = L.moveRowsForExport().filter(function(r){ return r.mode_id===block.id; });
           var csv  = L.toCSVMoves(rows);
+          csv = csvStripColumn(csv, "participant_id");
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
@@ -797,6 +842,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
           var rows = L.testRowsForExport().filter(function(r){ return r.mode_id===block.id; });
           var csv  = L.toCSVTests(rows);
+          csv = csvStripColumn(csv, "participant_id");
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
