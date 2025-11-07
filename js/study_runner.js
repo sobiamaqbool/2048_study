@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2989");
+console.log("study_runner loaded v=2990");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -141,7 +141,6 @@ document.addEventListener("DOMContentLoaded", function () {
     "#study-form input[type=range]{flex:1;}",
     "#study-submit{margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--thBorder);background:var(--th);color:var(--thText);font:700 14px system-ui;cursor:pointer;}",
     "#study-submit:hover{background:var(--thHover);}",
-
     /* Badges */
     "#study-timer{display:none;}",
     "#study-goal{display:none;pointer-events:none;}",
@@ -160,10 +159,26 @@ document.addEventListener("DOMContentLoaded", function () {
     ".yn-btn{flex:1;min-width:110px;padding:10px 14px;border-radius:12px;cursor:pointer;border:1px solid #D3C5B6;background:#F7F3EE;color:#1C1917;font:700 14px system-ui;box-shadow:0 3px 10px rgba(0,0,0,.12);transition:transform .06s ease,background .15s;}",
     ".yn-btn:hover{background:#E8DFD6;}",
     ".yn-btn:active{transform:translateY(1px);}",
-    ".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}"
+    ".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}",
+
+    /* Awareness / Auth mini-card */
+"#yn-card{display:flex;flex-direction:column;gap:12px;align-items:center;min-width:280px;max-width:420px;background:#4B3826;border:1px solid #2F2114;border-radius:14px;padding:16px 18px;box-shadow:0 16px 40px rgba(0,0,0,.35);}",
+"#yn-title{font:800 20px/1.2 system-ui;color:#fff;text-align:center;}",
+"#yn-sub{font:500 14px/1.4 system-ui;color:#f3eee8;opacity:.95;text-align:center;}",
+"#yn-actions{display:flex;gap:10px;justify-content:center;width:100%;}",
+".yn-btn{flex:1;min-width:110px;padding:10px 14px;border-radius:12px;cursor:pointer;border:1px solid #D3C5B6;background:#F7F3EE;color:#1C1917;font:700 14px system-ui;box-shadow:0 3px 10px rgba(0,0,0,.12);transition:transform .06s ease,background .15s;}",
+".yn-btn:hover{background:#E8DFD6;}",
+".yn-btn:active{transform:translateY(1px);}",
+".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}",
+
+/* Overlay flash that sits above tiles (works even during moves/merges) */
+".cell-flash{position:absolute;z-index:500;pointer-events:none;border-radius:12px;background:rgba(255,238,170,0.16);outline:2px solid rgba(255,220,130,.6);box-shadow:0 0 0 2px rgba(255,220,130,0.60) inset,0 0 18px 6px rgba(255,220,130,0.35);transform:scale(1.03);transition:opacity .25s ease;}",
+".cell-flash.fadeout{opacity:0;}"
   ].join("");
   document.head.appendChild(s);
 });
+
+
 
 // ========================== MAIN ==========================
 ;(function () {
@@ -764,22 +779,49 @@ document.addEventListener("DOMContentLoaded", function () {
       };
 
       // ---- Medium-mode flashes ----
-      if (block.id === "medium_mode") {
-        function getRandomTileEl(){
-          var inners = Array.prototype.slice.call(document.querySelectorAll(".tile .tile-inner"));
-          return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
-        }
-        function flashTileEl(el, ms){
-          ms = ms || 1300; // brighter duration
-          if(!el) return;
-          el.classList.add("flash-brief");
-          setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
-        }
-        function jitter(base, spread){ spread = spread || 2000; return Math.max(0, base + Math.floor((Math.random()*spread) - spread/2)); }
+     if (block.id === "medium_mode") {
+  function pickRandomTileEl() {
+    const els = Array.from(document.querySelectorAll(".tile"));
+    return els.length ? els[Math.floor(Math.random() * els.length)] : null;
+  }
 
-        schedule(function(){ flashTileEl(getRandomTileEl(), 1000); }, jitter(15000, 2500));
-        schedule(function(){ flashTileEl(getRandomTileEl(), 1000); }, jitter(65000, 3000));
-      }
+  // Draw a transient glow overlay at the tile's current screen position
+  function flashAtElement(el, ms) {
+    if (!el) return;
+    ms = ms || 1200;
+
+    const gc = document.querySelector(".game-container");
+    if (!gc) return;
+
+    const rTile = el.getBoundingClientRect();
+    const rGC   = gc.getBoundingClientRect();
+
+    const w = rTile.width;
+    const h = rTile.height;
+    const x = rTile.left - rGC.left;
+    const y = rTile.top  - rGC.top;
+
+    const ov = document.createElement("div");
+    ov.className = "cell-flash";
+    ov.style.left = x + "px";
+    ov.style.top  = y + "px";
+    ov.style.width  = w + "px";
+    ov.style.height = h + "px";
+
+    gc.appendChild(ov);
+
+    // keep visible for ms, then fade and remove
+    setTimeout(() => ov.classList.add("fadeout"), Math.max(1, ms - 220));
+    setTimeout(() => { try { ov.remove(); } catch(_){}; }, ms + 120);
+  }
+
+  function jitter(base, spread){ spread = spread || 2000; return Math.max(0, base + Math.floor((Math.random()*spread) - spread/2)); }
+
+  // schedule two flashes (same timings you already had, but robust to movement)
+  function triggerFlash(){ flashAtElement(pickRandomTileEl(), 1200); }
+  schedule(() => triggerFlash(), jitter(15000, 2500));
+  schedule(() => triggerFlash(), jitter(65000, 3000));
+}
     });
   }
 
