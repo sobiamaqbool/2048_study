@@ -1,8 +1,8 @@
-// study_runner.js — v=2989+stableId+authChoice+drive+overlayFull
+// study_runner.js — v=29900+stableId+authChoice+drive+overlayFull
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2989");
+console.log("study_runner loaded v=2900");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -153,12 +153,12 @@ document.addEventListener("DOMContentLoaded", function () {
     "@keyframes goalPulse{0%{transform:scale(0.92);box-shadow:0 0 0 0 rgba(217,203,184,.5);}70%{transform:scale(1);box-shadow:0 0 0 12px rgba(217,203,184,0);}100%{transform:scale(1);box-shadow:none;}}",
 
     /* Awareness / Auth mini-card */
-    "#yn-card{display:flex;flex-direction:column;gap:12px;align-items:center;min-width:280px;max-width:420px;background:#4B3826;border:1px solid #2F2114;border-radius:14px;padding:16px 18px;box-shadow:0 16px 40px rgba(0,0,0,.35);}",
+    "#yn-card{  display: flex;flex-direction: column;gap: 16px;align-items: center;width: 340px;         /* <<< FIX: Stable width */max-width: 90%;padding: 22px 24px;background: #4B3826;border: 1px solid #2F2114;border-radius: 14px;box-shadow: 0 16px 40px rgba(0,0,0,.35);}",
     "#yn-title{font:800 20px/1.2 system-ui;color:#fff;text-align:center;}",
     "#yn-sub{font:500 14px/1.4 system-ui;color:#f3eee8;opacity:.95;text-align:center;}",
-    "#yn-actions{display: flex;justify-content: center;align-items: center;gap: 12px;width: 100%;margin-top: 6px;}",
-    ".yn-btn{flex: 1;min-width: 150px;max-width: 200px;text-align: center;padding: 12px 16px;border-radius: 12px;cursor: pointer;border: 1px solid #D3C5B6;background: #F7F3EE;color: #1C1917;font: 700 14px system-ui;box-shadow: 0 3px 10px rgba(0,0,0,.12);transition: transform .06s ease, background .15s, box-shadow .15s;}",
-    ".yn-btn:hover{background: #E8DFD6;box-shadow: 0 4px 12px rgba(0,0,0,.16);}",
+    "#yn-actions{  display: flex;flex-direction: row;justify-content: space-between;gap: 12px;width: 100%; }",
+    ".yn-btn{width: 50%;          /* <<< FORCE EQUAL WIDTH */text-align: center;padding: 12px 14px;border-radius: 12px;cursor: pointer;border: 1px solid #D3C5B6;background: #F7F3EE;color: #1C1917;font: 700 14px system-ui;box-shadow: 0 3px 10px rgba(0,0,0,.12);transition: transform .06s ease, background .15s;}",
+    ".yn-btn:hover{ background: #E8DFD6;}",
     ".yn-btn:active{transform:translateY(1px);}",
     ".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}"
   ].join("");
