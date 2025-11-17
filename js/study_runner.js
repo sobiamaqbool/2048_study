@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2900");
+console.log("study_runner loaded v=2901");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -127,7 +127,16 @@ document.addEventListener("DOMContentLoaded", function () {
     ":root{--th:#402F1D;--th95:rgba(64,47,29,.95);--thBorder:#2F2114;--thHover:#5A4029;--thShadow:rgba(64,47,29,.4);--thText:#fff;}",
 
     /* Overlay */
-    "#study-overlay{background:rgba(64,47,29,.88)!important;backdrop-filter:blur(6px);color:#fff!important;display:none;position:fixed;inset:0;z-index:100000;place-items:center;padding:24px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45);}",
+    "#study-overlay{" +"background:rgba(0,0,0,.55)!important;" +     /* dim full-screen bg */
+  "backdrop-filter:blur(6px);" +
+  "color:#fff!important;" +
+  "display:none;" +
+  "position:fixed;inset:0;z-index:100000;" +
+  "display:grid;place-items:center;" +          /* center children */
+  "padding:0;" +                                /* remove card padding */
+  "border-radius:0;" +                          /* no rounded box */
+  "box-shadow:none;" +                          /* no card shadow */
+"}",
     "#study-title{font:800 24px/1.2 system-ui;letter-spacing:.2px;}",
     "#study-body{font:500 14px/1.4 system-ui;opacity:.95;margin-top:6px;}",
     "#study-form{margin-top:14px;max-width:520px;width:100%;background:var(--th95);border:1px solid var(--thBorder);border-radius:12px;padding:14px;}",
