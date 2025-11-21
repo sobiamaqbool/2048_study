@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2902");
+console.log("study_runner loaded v=2909");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -120,7 +120,16 @@ document.addEventListener("DOMContentLoaded", function () {
   var s = document.createElement("style");
   s.textContent = [
     ".game-message { pointer-events: none !important; }",
-    ".tile-inner.flash-brief{filter:brightness(2.3) saturate(1.5);box-shadow:0 0 15px 6px rgba(255,255,255,0.8);transition:all .25s ease;}",
+  ".tile-inner.flash-brief{" +
+  "filter:brightness(2.3) saturate(1.5);" + 
+  "box-shadow:" +
+      "0 0 15px 6px rgba(255,255,255,0.8)," +   /* original white glow */ 
+      "0 0 0 3px #000!important;" +            /* NEW black border */ 
+  "transition:all .25s ease;" +
+  "z-index:5;" +
+"}",
+
+
 
     /* ===== Theme (#402F1D) ===== */
     ":root{--th:#402F1D;--th95:rgba(64,47,29,.95);--thBorder:#2F2114;--thHover:#5A4029;--thShadow:rgba(64,47,29,.4);--thText:#fff;}",
