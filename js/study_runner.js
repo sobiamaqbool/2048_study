@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2915");
+console.log("study_runner loaded v=2922");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -119,17 +119,11 @@ function postToDrive(files, extra){
 document.addEventListener("DOMContentLoaded", function () {
   var s = document.createElement("style");
   s.textContent = [
-".tile-inner.flash-brief{" +
-  "filter:brightness(2.3) saturate(1.5);" +
-  "box-shadow:" +
-    "0 0 15px 6px rgba(255,255,255,0.8)," +
-    "0 0 0 4px #000!important;" +
-  "animation:flashPulse 0.2s ease-out 1;" +
-  "z-index:5;" +
-"}",
+    ".game-message { pointer-events: none !important; }",
+    ".tile-inner.flash-brief{filter:brightness(2.3) saturate(1.5);box-shadow:0 0 15px 6px rgba(255,255,255,0.8);transition:all .25s ease;}",
 
-"@keyframes flashPulse{0%{transform:scale(1);}50%{transform:scale(1.06);}100%{transform:scale(1);}}",
-
+    /* ===== Theme (#402F1D) ===== */
+    ":root{--th:#402F1D;--th95:rgba(64,47,29,.95);--thBorder:#2F2114;--thHover:#5A4029;--thShadow:rgba(64,47,29,.4);--thText:#fff;}",
 
     /* Overlay */
     "#study-overlay{background:rgba(64,47,29,.88)!important;backdrop-filter:blur(6px);color:#fff!important;display:none;position:fixed;inset:0;z-index:100000;place-items:center;padding:24px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45);}",
@@ -786,7 +780,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
         }
         function flashTileEl(el, ms){
-          ms = ms || 1800; // brighter duration
+          ms = ms || 1300; // brighter duration
           if(!el) return;
           el.classList.add("flash-brief");
           setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
