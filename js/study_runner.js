@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2912");
+console.log("study_runner loaded v=2915");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -786,7 +786,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
         }
         function flashTileEl(el, ms){
-          ms = ms || 2000; // brighter duration
+          ms = ms || 1800; // brighter duration
           if(!el) return;
           el.classList.add("flash-brief");
           setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
