@@ -2,7 +2,7 @@
 // Medium: goal=512, no timer + two flashes (~15s, ~65s).
 // Hard: timer on. Goal+Timer badges on same row. Smooth moves.
 
-console.log("study_runner loaded v=2922");
+console.log("study_runner loaded v=2923");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -538,7 +538,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       var card = document.createElement("div"); card.id = "yn-card";
       card.innerHTML =
-        '<div id="yn-title">Did you notice any tile changing color?</div>' +
+        '<div id="yn-title">Did you notice any brief white flash on any tile while playing?</div>' +
         '<div id="yn-sub">Answer and continue. You can also press <b>Y</b> or <b>N</b>.</div>' +
         '<div id="yn-actions">' +
           '<button class="yn-btn" id="yn-yes">Yes <span class="yn-kbd">Y</span></button>' +
