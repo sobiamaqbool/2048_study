@@ -409,7 +409,6 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="radio-group" id="demo-hand-group">
             <label><input type="radio" name="demo-hand" value="right"> Right-handed</label>
             <label><input type="radio" name="demo-hand" value="left"> Left-handed</label>
-            <label><input type="radio" name="demo-hand" value="both"> Use both hands</label>
           </div>
         </div>
 
