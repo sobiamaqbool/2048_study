@@ -661,10 +661,6 @@ hr {
     position: absolute;
     z-index: 2; }
 
-  .tile, .tile .tile-inner {
-    width: 58px;
-    height: 58px;
-    line-height: 58px; }
   .tile.tile-position-1-1 {
     -webkit-transform: translate(0px, 0px);
     -moz-transform: translate(0px, 0px);
@@ -756,3 +752,37 @@ hr {
     margin-top: 90px !important; }
   .game-message .lower {
     margin-top: 30px !important; } }
+  
+/* ===== CLEAN ODDBALL STYLE ===== */
+/* Subtle oddball highlight that fades out over ~3 seconds */
+/* ============================
+   ODDBALL TILE — 3 SECOND HIGHLIGHT
+   ============================ */
+.tile-oddball .tile-inner {
+  background:  #e3faf6  !important;   /* light cyan */
+  color: #776e65 !important;
+  border: none !important;
+  box-shadow: 0 0 10px rgba(0,0,0,0.35);
+  transform: scale(1);
+  /* animation: oddballFadeOut 3s ease-out forwards*/;
+}
+
+@keyframes oddballFadeOut {
+  0% {
+    background: #e3faf6;
+    color: #776e65;
+    box-shadow: 0 0 10px rgba(0,0,0,0.35);
+    transform: scale(1);
+  }
+  100% {
+    /* Normal 2048 tile-2 look */
+    background: #eee4da;
+    color: #776e65;
+    box-shadow: none;
+    transform: none;
+  }
+}
+
+
+
+/* #e3faf6  color    color: #756e66 !important;  */

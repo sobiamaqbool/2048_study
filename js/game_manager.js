@@ -1,10 +1,16 @@
 function GameManager(size, InputManager, Actuator, StorageManager) {
-  this.size           = size; // Size of the grid
+  this.size           = size;
   this.inputManager   = new InputManager;
   this.storageManager = new StorageManager;
   this.actuator       = new Actuator;
 
   this.startTiles     = 2;
+
+  // ---- Oddball state ----
+  this.oddballEnabled = !!window.__oddballEnabled;
+  this.moveCount      = 0;
+  this.oddballSpawned = false;
+  
 
   this.inputManager.on("move", this.move.bind(this));
   this.inputManager.on("restart", this.restart.bind(this));
@@ -13,10 +19,15 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
   this.setup();
 }
 
+
 // Restart the game
 GameManager.prototype.restart = function () {
   this.storageManager.clearGameState();
   this.actuator.continueGame(); // Clear the game won/lost message
+
+  this.moveCount      = 0;
+  this.oddballSpawned = false;
+
   this.setup();
 };
 
@@ -35,26 +46,25 @@ GameManager.prototype.isGameTerminated = function () {
 GameManager.prototype.setup = function () {
   var previousState = this.storageManager.getGameState();
 
-  // Reload the game from a previous game if present
   if (previousState) {
+    // Reload previous game
     this.grid        = new Grid(previousState.grid.size,
-                                previousState.grid.cells); // Reload grid
+                                previousState.grid.cells);
     this.score       = previousState.score;
     this.over        = previousState.over;
     this.won         = previousState.won;
     this.keepPlaying = previousState.keepPlaying;
   } else {
+    // New game
     this.grid        = new Grid(this.size);
     this.score       = 0;
     this.over        = false;
     this.won         = false;
     this.keepPlaying = false;
 
-    // Add the initial tiles
     this.addStartTiles();
   }
 
-  // Update the actuator
   this.actuate();
 };
 
@@ -66,14 +76,40 @@ GameManager.prototype.addStartTiles = function () {
 };
 
 // Adds a tile in a random position
-GameManager.prototype.addRandomTile = function () {
-  if (this.grid.cellsAvailable()) {
-    var value = Math.random() < 0.9 ? 2 : 4;
-    var tile = new Tile(this.grid.randomAvailableCell(), value);
 
-    this.grid.insertTile(tile);
+GameManager.prototype.addRandomTile = function () {
+  if (!this.grid.cellsAvailable()) return;
+
+  var value    = Math.random() < 0.9 ? 2 : 4;
+  var position = this.grid.randomAvailableCell();
+
+  var isOddball = false;
+
+  // Only in medium round, only after a few moves
+  if (this.oddballEnabled &&          // set from window.__oddballEnabled
+      !this.oddballSpawned &&         // only once
+      this.moveCount >= 10 &&         // after 10 moves
+      this.moveCount <= 40) {         // optional upper bound
+
+    if (Math.random() < 0.30) {       // 30% chance each spawn
+      isOddball = true;
+      this.oddballSpawned = true;
+      console.log("Oddball spawned at:", position, "move", this.moveCount);
+    }
   }
+
+  var tile = new Tile(position, value);
+  tile.isOddball = !!isOddball;
+
+  if (tile.isOddball && window.StudyLogger && StudyLogger.logOddballSpawn) {
+    StudyLogger.logOddballSpawn(tile);
+  }
+
+  this.grid.insertTile(tile);
 };
+
+ 
+
 
 // Sends the updated grid to the actuator
 GameManager.prototype.actuate = function () {
@@ -128,10 +164,11 @@ GameManager.prototype.moveTile = function (tile, cell) {
 
 // Move tiles on the grid in the specified direction
 GameManager.prototype.move = function (direction) {
-  // 0: up, 1: right, 2: down, 3: left
   var self = this;
 
   if (this.isGameTerminated()) return; // Don't do anything if the game's over
+    // Count every key press for oddball window
+  this.moveCount++;
 
   var cell, tile;
 
@@ -139,10 +176,8 @@ GameManager.prototype.move = function (direction) {
   var traversals = this.buildTraversals(vector);
   var moved      = false;
 
-  // Save the current tile positions and remove merger information
   this.prepareTiles();
 
-  // Traverse the grid in the right direction and move tiles
   traversals.x.forEach(function (x) {
     traversals.y.forEach(function (y) {
       cell = { x: x, y: y };
@@ -152,34 +187,30 @@ GameManager.prototype.move = function (direction) {
         var positions = self.findFarthestPosition(cell, vector);
         var next      = self.grid.cellContent(positions.next);
 
-        // Only one merger per row traversal?
         if (next && next.value === tile.value && !next.mergedFrom) {
+          // Merge tiles
           var merged = new Tile(positions.next, tile.value * 2);
           merged.mergedFrom = [tile, next];
 
           self.grid.insertTile(merged);
           self.grid.removeTile(tile);
 
-          // Converge the two tiles' positions
           tile.updatePosition(positions.next);
 
-          // Update the score
           self.score += merged.value;
 
-          // The mighty 2048 tile
           if (merged.value === 2048) self.won = true;
         } else {
           self.moveTile(tile, positions.farthest);
         }
 
         if (!self.positionsEqual(cell, tile)) {
-          moved = true; // The tile moved from its original cell!
+          moved = true;
         }
       }
     });
   });
-
-  if (moved) {
+if (moved) {
     this.addRandomTile();
 
     if (!this.movesAvailable()) {
@@ -188,6 +219,7 @@ GameManager.prototype.move = function (direction) {
 
     this.actuate();
   }
+
 };
 
 // Get the vector representing the chosen direction

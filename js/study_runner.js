@@ -1,8 +1,6 @@
-// study_runner.js — v=2901+stableId+authChoice+drive+overlayFull
-// Medium: goal=512, no timer + two flashes (~15s, ~65s).
-// Hard: timer on. Goal+Timer badges on same row. Smooth moves.
+// study_runner.js — v=2997 (oddball + demographics, same-person check)
 
-console.log("study_runner loaded v=2923");
+console.log("study_runner loaded v=2997");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -10,24 +8,22 @@ function driveEnabled() {
   return typeof DRIVE_WEBAPP_URL === "string" && DRIVE_WEBAPP_URL.startsWith("http");
 }
 
-// ====== PARTICIPANT LABEL (Participant_1, 2, …) ======
+// ====== PARTICIPANT LABEL (P01, P02, …) ======
 function participantLabel() {
   let label = localStorage.getItem("participant_label");
   if (!label) {
     let count = parseInt(localStorage.getItem("participant_counter") || "0", 10) + 1;
     localStorage.setItem("participant_counter", count);
-    label = "P" + String(count).padStart(2, "0"); // P01, P02, ...
+    label = "P" + String(count).padStart(2, "0");
     localStorage.setItem("participant_label", label);
   }
   return label;
 }
 
-// Example use:
 const PARTICIPANT_ID = participantLabel();
 console.log("Participant ID:", PARTICIPANT_ID);
 
 // ====== ANON + SESSION ======
-// Prefer Google UID if known (persists in localStorage), else device anonId()
 function stableParticipantId() {
   const uid = localStorage.getItem("anon_link_google_uid");
   return uid ? `google:${uid}` : `anon:${anonId()}`;
@@ -42,9 +38,11 @@ function anonId() {
   }
   return id;
 }
+
 function randSessionId() {
   return (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) + "-" + Date.now().toString(36);
 }
+
 function tsPrecise(){
   var d=new Date();
   function p(n){ return String(n).padStart(2,"0"); }
@@ -82,7 +80,7 @@ function csvStripColumn(csv, colName){
 
   const header = split(lines[0]);
   const idx = header.indexOf(colName);
-  if (idx === -1) return csv; // nothing to remove
+  if (idx === -1) return csv;
 
   header.splice(idx,1);
   const out = [join(header)];
@@ -100,7 +98,7 @@ function postToDrive(files, extra){
   if (!driveEnabled()) return;
   try {
     const payload = {
-      participant_id: stableParticipantId(),     // stable ID (Google UID if set, else anon)
+      participant_id: stableParticipantId(),
       participant_label: participantLabel(),
       session_id: (extra && extra.session_id) ? extra.session_id : randSessionId(),
       files: files || {},
@@ -115,39 +113,46 @@ function postToDrive(files, extra){
   } catch (e) { console.warn("Drive upload skipped:", e); }
 }
 
-// ====== FULL OVERLAY + UI STYLES ======
+// ====== OVERLAY + STYLES ======
 document.addEventListener("DOMContentLoaded", function () {
   var s = document.createElement("style");
   s.textContent = [
     ".game-message { pointer-events: none !important; }",
-    ".tile-inner.flash-brief{filter:brightness(2.3) saturate(1.5);box-shadow:0 0 15px 6px rgba(255,255,255,0.8);transition:all .25s ease;}",
 
-    /* ===== Theme (#402F1D) ===== */
+    /* Theme */
     ":root{--th:#402F1D;--th95:rgba(64,47,29,.95);--thBorder:#2F2114;--thHover:#5A4029;--thShadow:rgba(64,47,29,.4);--thText:#fff;}",
 
     /* Overlay */
     "#study-overlay{background:rgba(64,47,29,.88)!important;backdrop-filter:blur(6px);color:#fff!important;display:none;position:fixed;inset:0;z-index:100000;place-items:center;padding:24px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45);}",
     "#study-title{font:800 24px/1.2 system-ui;letter-spacing:.2px;}",
     "#study-body{font:500 14px/1.4 system-ui;opacity:.95;margin-top:6px;}",
-    "#study-form{" +"margin:0;" +
-"padding:0;" +
-"max-width:none;" +
-"width:auto;" +
-"display:flex;" +
-"align-items:center;" +
-"justify-content:center;" +
-"background:transparent;" +
-"border:none;" +
-"border-radius:0;" +
-"}",
-    "#study-form .q{margin:10px 0 14px;}",
-    "#study-form label{display:block;font:600 13px system-ui;margin-bottom:6px;color:var(--thText);}",
-    "#study-form .opts{display:flex;flex-wrap:wrap;gap:8px;}",
-    "#study-form .optbtn{border:1px solid var(--thBorder);border-radius:10px;padding:6px 10px;font:600 13px system-ui;background:var(--th);cursor:pointer;color:var(--thText);}",
-    "#study-form .optbtn:hover{background:var(--thHover);}",
-    "#study-form .optbtn.active{background:var(--thHover);border-color:#D9CBB8;}",
-    "#study-form .rangewrap{display:flex;align-items:center;gap:10px;}",
-    "#study-form input[type=range]{flex:1;}",
+    "#study-box{max-width:480px;width:90%;}",
+
+    "#study-form{margin:0;padding:0;max-width:none;width:auto;display:flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:0;}",
+    "#study-form .q{margin:8px 0 10px;}",
+    "#study-form label{display:block;font:600 15px system-ui;margin-bottom:6px;color:var(--thText);}",
+
+    /* Uniform classic fields: age + all dropdowns */
+    "#study-form input[type=number], #study-form select{" +
+    "  width:100%;" +
+    "  height:40px;" +
+    "  padding:8px 10px;" +
+    "  border-radius:8px;" +
+    "  border:1px solid #D3C5B6;" +
+    "  background:#F7F3EE;" +
+    "  color:#1C1917;" +
+    "  font:500 14px system-ui;" +
+    "  box-sizing:border-box;" +
+    "  -webkit-appearance:none;" +
+    "  appearance:none;" +
+    "}",
+
+    "#study-form input[type=number]:focus, #study-form select:focus{" +
+    "  outline:none;" +
+    "  border-color:#F4E1C1;" +
+    "  box-shadow:0 0 0 2px rgba(244,225,193,.4);" +
+    "}",
+
     "#study-submit{margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--thBorder);background:var(--th);color:var(--thText);font:700 14px system-ui;cursor:pointer;}",
     "#study-submit:hover{background:var(--thHover);}",
 
@@ -161,24 +166,30 @@ document.addEventListener("DOMContentLoaded", function () {
     "#study-goal.pulse{animation:goalPulse .9s ease-out 1;}",
     "@keyframes goalPulse{0%{transform:scale(0.92);box-shadow:0 0 0 0 rgba(217,203,184,.5);}70%{transform:scale(1);box-shadow:0 0 0 12px rgba(217,203,184,0);}100%{transform:scale(1);box-shadow:none;}}",
 
-    /* Awareness / Auth mini-card */
-    "#yn-card{  display: flex;flex-direction: column;gap: 16px;align-items: center;width: 340px;         /* <<< FIX: Stable width */max-width: 90%;padding: 22px 24px;background: #4B3826;border: 1px solid #2F2114;border-radius: 14px;box-shadow: 0 16px 40px rgba(0,0,0,.35);}",
-    "#yn-title{font:800 20px/1.2 system-ui;color:#fff;text-align:center;}",
-    "#yn-sub{font:500 14px/1.4 system-ui;color:#f3eee8;opacity:.95;text-align:center;}",
-    "#yn-actions{  display: flex;flex-direction: row;justify-content: space-between;gap: 12px;width: 100%; }",
-    ".yn-btn{width: 50%;          /* <<< FORCE EQUAL WIDTH */text-align: center;padding: 12px 14px;border-radius: 12px;cursor: pointer;border: 1px solid #D3C5B6;background: #F7F3EE;color: #1C1917;font: 700 14px system-ui;box-shadow: 0 3px 10px rgba(0,0,0,.12);transition: transform .06s ease, background .15s;}",
-    ".yn-btn:hover{ background: #E8DFD6;}",
+    /* Cards */
+    "#yn-card{display:flex;flex-direction:column;gap:16px;align-items:center;width:340px;max-width:90%;padding:22px 24px;background:#4B3826;border:1px solid #2F2114;border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.35);}",
+    "#yn-card.demo-card{align-items:stretch;width:420px;max-width:90%;padding:16px 20px;}",
+    "#yn-title{font:800 20px/1.2 system-ui;color:#fff;text-align:center;margin-bottom:4px;}",
+    "#yn-sub{font:500 13px/1.4 system-ui;color:#f3eee8;opacity:.95;text-align:center;margin-bottom:10px;}",
+    "#yn-actions{display:flex;flex-direction:row;justify-content:space-between;gap:12px;width:100%;}",
+    ".yn-btn{width:50%;text-align:center;padding:12px 14px;border-radius:12px;cursor:pointer;border:1px solid #D3C5B6;background:#F7F3EE;color:#1C1917;font:700 14px system-ui;box-shadow:0 3px 10px rgba(0,0,0,.12);transition:transform .06s.ease, background .15s;}",
+    ".yn-btn:hover{background:#E8DFD6;}",
     ".yn-btn:active{transform:translateY(1px);}",
-    ".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}"
+    ".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}",
+
+    "#demo-submit.yn-btn{background:#FCFAF7;color:#1B1A18;width:100%;padding:12px 14px;border-radius:10px;border:1px solid #D9CBB8;font:700 14px system-ui;}",
+    "#demo-submit.yn-btn:hover{background:#F2EEEA;}",
+
+    "#study-overlay{z-index:100000!important;pointer-events:auto!important;}"
   ].join("");
   document.head.appendChild(s);
 });
 
-
 // ========================== MAIN ==========================
 ;(function () {
   var L = window.StudyLogger;
-  L.setContext({ participant_id: stableParticipantId(), mode_id: "init" });
+  // init context – participant_id will be set in boot
+  L.setContext({ mode_id: "init" });
   var Tests = window.TestsUI;
 
   // ---------- Overlay helpers ----------
@@ -186,6 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var titleEl = document.getElementById("study-title");
   var bodyEl  = document.getElementById("study-body");
   var boxEl   = document.getElementById("study-box");
+
   function show(t, s){
     if (titleEl) titleEl.textContent = t || "";
     if (bodyEl)  bodyEl.textContent  = s || "";
@@ -198,8 +210,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ==== AUTH CHOICE (Google or Guest) ====
-  const ENABLE_GOOGLE_LOGIN = true;        // flip false to hide Google option
-  const REQUIRE_EMAIL_IN_LOGS = false;     // keep false for privacy
+  const ENABLE_GOOGLE_LOGIN = true;
+  const REQUIRE_EMAIL_IN_LOGS = false;
 
   function ensureHost_() {
     let host = document.getElementById("study-form");
@@ -211,7 +223,6 @@ document.addEventListener("DOMContentLoaded", function () {
     return host;
   }
 
-  // Use the real function from auth.js if present; otherwise a stub that keeps the dialog open.
   const optionalGoogleSignIn = window.optionalGoogleSignIn || (async () => {
     throw new Error("Google sign-in not configured.");
   });
@@ -219,13 +230,15 @@ document.addEventListener("DOMContentLoaded", function () {
   function askAuthChoicePersistent() {
     if (!ENABLE_GOOGLE_LOGIN) return Promise.resolve({ choice: "guest" });
 
-    // If already linked before, skip prompt (optional)
     if (localStorage.getItem("anon_link_google_uid")) {
-      return Promise.resolve({ choice: "google", data: {
-        google_uid: localStorage.getItem("anon_link_google_uid"),
-        displayName: localStorage.getItem("google_displayName") || null,
-        email: localStorage.getItem("google_email") || null
-      }});
+      return Promise.resolve({
+        choice: "google",
+        data: {
+          google_uid: localStorage.getItem("anon_link_google_uid"),
+          displayName: localStorage.getItem("google_displayName") || null,
+          email: localStorage.getItem("google_email") || null
+        }
+      });
     }
 
     return new Promise((resolve) => {
@@ -240,7 +253,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <div id="yn-msg" style="font:600 12px system-ui;opacity:.9;margin-top:8px;"></div>
         </div>
       `;
-      show("", ""); // show blocking overlay
+      show("", "");
 
       const $msg = host.querySelector("#yn-msg");
       const setMsg = (t) => { $msg.textContent = t || ""; };
@@ -270,8 +283,216 @@ document.addEventListener("DOMContentLoaded", function () {
         } catch (e) {
           console.warn("Google sign-in failed:", e);
           setMsg("Sign-in failed. You can try again or Play as Guest.");
-          // keep dialog open; user can still choose Guest
         }
+      };
+    });
+  }
+
+  // ==== DEMOGRAPHICS (form before study) ====
+  function askDemographics() {
+    return new Promise(function(resolve){
+      var mid = "demographics";
+
+      try {
+        if (L && typeof L.setContext === "function") {
+          L.setContext({ participant_id: stableParticipantId(), mode_id: mid });
+        }
+        if (L && typeof L.newSession === "function") {
+          L.newSession(mid);
+        }
+      } catch (e) {
+        console.warn("Demographics: could not start logger session:", e);
+      }
+
+      const host = ensureHost_();
+      host.innerHTML = `
+        <div id="yn-card" class="demo-card">
+          <div id="yn-title">Before we start</div>
+          <div id="yn-sub">Please answer a few short questions.</div>
+
+          <div class="q">
+            <label>Age</label>
+            <input id="demo-age" type="number" min="10" max="100" style="width:100%">
+          </div>
+
+          <div class="q">
+            <label>Gender</label>
+            <select id="demo-gender" style="width:100%">
+              <option value="">Select…</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="q">
+            <label>Highest education level</label>
+            <select id="demo-edu" style="width:100%">
+              <option value="">Select…</option>
+              <option value="school">School / College</option>
+              <option value="bachelors">Bachelor</option>
+              <option value="masters">Master</option>
+              <option value="phd">PhD</option>
+            </select>
+          </div>
+
+          <div class="q">
+            <label>How often do you play video / mobile games?</label>
+            <select id="demo-games" style="width:100%">
+              <option value="">Select…</option>
+              <option value="never">Almost never</option>
+              <option value="monthly">A few times per month</option>
+              <option value="weekly">1–3 times per week</option>
+              <option value="daily">Most days</option>
+            </select>
+          </div>
+
+          <div class="q">
+            <label>Vision</label>
+            <select id="demo-vision" style="width:100%">
+              <option value="">Select…</option>
+              <option value="normal">Normal vision</option>
+              <option value="glasses_contacts">Glasses / contacts</option>
+              <option value="vision_disorder">Known vision disorder</option>
+            </select>
+          </div>
+
+          <div class="q">
+            <label>Handedness</label>
+            <select id="demo-hand" style="width:100%">
+              <option value="">Select…</option>
+              <option value="right">Right-handed</option>
+              <option value="left">Left-handed</option>
+              <option value="both">Use both hands</option>
+            </select>
+          </div>
+
+          <button id="demo-submit" class="yn-btn" style="width:100%;margin-top:6px;">
+            Continue
+          </button>
+
+          <div id="demo-error" style="color:#ffb3b3;font:600 13px system-ui;text-align:center;margin-top:6px;display:none;">
+            Please answer all questions.
+          </div>
+        </div>
+      `;
+
+      show("", "");
+
+      document.getElementById("demo-submit").onclick = function(){
+        const age    = document.getElementById("demo-age").value;
+        const gender = document.getElementById("demo-gender").value;
+        const edu    = document.getElementById("demo-edu").value;
+        const games  = document.getElementById("demo-games").value;
+        const vision = document.getElementById("demo-vision").value;
+        const hand   = document.getElementById("demo-hand").value;
+
+        if (!age || !gender || !edu || !games || !vision || !hand) {
+          const e = document.getElementById("demo-error");
+          e.style.display = "block";
+          return;
+        }
+
+        try {
+          if (L && typeof L.logTest === "function") {
+            L.logTest(mid, "age",        "profile", age);
+            L.logTest(mid, "gender",     "profile", gender);
+            L.logTest(mid, "education",  "profile", edu);
+            L.logTest(mid, "games",      "profile", games);
+            L.logTest(mid, "vision",     "profile", vision);
+            L.logTest(mid, "handedness", "profile", hand);
+          }
+        } catch(e){
+          console.warn("Demographics logging failed:", e);
+        }
+
+        // export demographics to Drive
+        try {
+          if (L && typeof L.testRowsForExport === "function" &&
+                  typeof L.toCSVTests === "function") {
+
+            var rows = L.testRowsForExport().filter(function(r){
+              return r.mode_id === mid;
+            });
+
+            if (rows && rows.length) {
+              var csv = L.toCSVTests(rows);
+              csv = csvStripColumn(csv, "participant_id");
+
+              var metaObj = {
+                study_id: "study",
+                block_id: mid,
+                app_version: "v2995+demographics",
+                ts: new Date().toISOString(),
+                userAgent: navigator.userAgent
+              };
+
+              postToDrive(
+                { "tests.csv": csv, "meta.json": metaObj },
+                { session_id: "S_" + tsPrecise() + "_" + mid }
+              );
+            }
+          }
+        } catch(e){
+          console.warn("Drive upload (demographics) failed:", e);
+        }
+
+        hide();
+        // mark that demographics were completed on this browser
+        try {
+          localStorage.setItem("demographics_done", "1");
+        } catch (e) {
+          console.warn("could not set demographics_done", e);
+        }
+
+        host.innerHTML = "";
+        resolve();
+      };
+    });
+  }
+
+  // ==== SAME PERSON OR NEW PERSON? ====
+  function ensureDemographicsOnce() {
+    return new Promise(function (resolve) {
+      var already = false;
+      try {
+        already = localStorage.getItem("demographics_done") === "1";
+      } catch (e) {
+        console.warn("cannot read demographics_done", e);
+      }
+
+      // First-time visitor → just show the form
+      if (!already) {
+        askDemographics().then(resolve);
+        return;
+      }
+
+      // Returning on same browser → ask if same person
+      const host = ensureHost_();
+      host.innerHTML = `
+        <div id="yn-card" class="demo-card">
+          <div id="yn-title">Is this the same person as before?</div>
+          <div id="yn-sub">If someone new is playing, we will ask the short questions again.</div>
+          <div id="yn-actions">
+            <button class="yn-btn" id="same-person">Same person</button>
+            <button class="yn-btn" id="new-person">New person</button>
+          </div>
+        </div>
+      `;
+      show("", "");
+
+      document.getElementById("same-person").onclick = function () {
+        host.innerHTML = "";
+        hide();
+        resolve(); // go straight to the study
+      };
+
+      document.getElementById("new-person").onclick = function () {
+        try { localStorage.removeItem("demographics_done"); } catch(e){}
+        host.innerHTML = "";
+        hide();
+        // now force demographics again
+        askDemographics().then(resolve);
       };
     });
   }
@@ -279,7 +500,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // ---------- YAML loader ----------
   function loadConfigSmart() {
     return new Promise(function(resolve, reject){
-      function go(){ 
+      function go(){
         var urls = ["public/block.yaml","/public/block.yaml","block.yaml","/block.yaml"];
         (function next(i){
           if (i>=urls.length) { reject(new Error("Could not find block.yaml")); return; }
@@ -529,7 +750,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // ---------- Awareness Yes/No (mini-card) ----------
   function askYesNoAwareness(block) {
     return new Promise(function(resolve){
       var host = document.getElementById("study-form");
@@ -538,7 +758,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       var card = document.createElement("div"); card.id = "yn-card";
       card.innerHTML =
-        '<div id="yn-title">Did you notice any brief white flash on any tile while playing?</div>' +
+        '<div id="yn-title">Did you notice any odd looking tile while playing?</div>' +
         '<div id="yn-sub">Answer and continue. You can also press <b>Y</b> or <b>N</b>.</div>' +
         '<div id="yn-actions">' +
           '<button class="yn-btn" id="yn-yes">Yes <span class="yn-kbd">Y</span></button>' +
@@ -552,13 +772,17 @@ document.addEventListener("DOMContentLoaded", function () {
         try { host.remove(); } catch(_) {}
         hide();
       }
+
       function done(val){
         try {
-          window.__pendingAwareness = { block_id: block.id, response: val };
-          console.log("Awareness stored temporarily:", window.__pendingAwareness);
-        } catch(e){ console.warn("Awareness temp store failed:", e); }
+          if (window.StudyLogger && StudyLogger.logOddballReport) {
+            StudyLogger.logOddballReport(val === "Yes");
+            console.log("Oddball awareness logged:", val);
+          }
+        } catch (e) {
+          console.warn("Oddball logging failed:", e);
+        }
 
-        try { window.removeEventListener("keydown", onk, true); } catch(_){}
         cleanup();
         resolve();
       }
@@ -594,7 +818,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!isFinite(Number(block.timer.hard_cap_sec))) block.timer.hard_cap_sec = 90;
       block.stop = { kind: "time", value: block.timer.hard_cap_sec };
 
-    // prefill 35% + spawn bias (2s more frequent)
       block.start_state = block.start_state || {};
       var pf = block.start_state.prefill || {};
       if (!isFinite(Number(pf.fill_ratio))) pf.fill_ratio = 0.35;
@@ -607,191 +830,234 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ================= PLAY =================
-  function runPlayBlock(cfg, block){
-    return new Promise(function(resolve){
-      applyDefaultsForBlock(block);
-      var playSessionToken = (Math.random().toString(36).slice(2) + Date.now().toString(36));
-      window.__activePlayToken = playSessionToken;
+  // ================= PLAY =================
+function runPlayBlock(cfg, block){
+  return new Promise(function(resolve){
+    applyDefaultsForBlock(block);
 
-      var size = block.board_size || (cfg && cfg.global && cfg.global.board_size) || 4;
-      wipeGameDOM(size);
+    var playSessionToken = (Math.random().toString(36).slice(2) + Date.now().toString(36));
+    window.__activePlayToken = playSessionToken;
 
-      anchorGoalBadgeToBoard();
-      anchorTimerBadgeToBoard();
+    var size = block.board_size || (cfg && cfg.global && cfg.global.board_size) || 4;
+    wipeGameDOM(size);
 
-      var msgNode = document.querySelector(".game-message");
-      if (msgNode) {
-        msgNode.classList.remove("game-won", "game-over");
-        var p = msgNode.querySelector("p"); if (p) p.textContent = "";
+    anchorGoalBadgeToBoard();
+    anchorTimerBadgeToBoard();
+
+    var msgNode = document.querySelector(".game-message");
+    if (msgNode) {
+      msgNode.classList.remove("game-won", "game-over");
+      var p = msgNode.querySelector("p"); if (p) p.textContent = "";
+    }
+
+    var gm = new GameManager(size, KeyboardInputManager, HTMLActuator, NoStorageManager);
+    var freshActuator = gm.actuator;
+
+    // ---- ODDBALL STATE (per round) ----
+    gm.moveCount      = 0;
+    gm.oddballSpawned = false;
+    gm.oddballEnabled = (block.id === "medium_mode");  // <— key line
+    console.log(block.id + " play — gm.oddballEnabled =", gm.oddballEnabled);
+
+    gm.grid = new Grid(size);
+    gm.score = 0;
+    gm.over = false;
+    gm.won = false;
+    gm.keepPlaying = false;
+
+    if (gm.actuator && typeof gm.actuator.clearMessage === "function") gm.actuator.clearMessage();
+
+    L.setContext({ participant_id: stableParticipantId(), mode_id: block.id });
+    L.newSession(block.id);
+
+    var goalTile = isFinite(Number(block.goal_tile)) ? Number(block.goal_tile) : null;
+    var introMsg = goalTile
+      ? '<span style="display:block;margin-top:6px;font:600 18px/1.3 system-ui;color:#fff;">Goal: reach ' + goalTile + '</span>'
+      : "Press arrow keys to play";
+    show(block.description || block.id, "");
+    if (bodyEl) bodyEl.innerHTML = introMsg;
+
+    var ov = document.getElementById("study-overlay");
+    if (ov) ov.style.pointerEvents = "none";
+    setTimeout(function(){ hide(); if (ov) ov.style.pointerEvents = ""; }, 5000);
+
+    if (goalTile) showGoalBadge(goalTile); else hideGoalBadge();
+
+    var ended=false, cd=null;
+    var scheduled = [];
+    function schedule(fn, ms){
+      var id = setTimeout(function(){ if(!ended) fn(); }, ms);
+      scheduled.push(id);
+    }
+    function clearScheduled(){
+      scheduled.forEach(function(id){ clearTimeout(id); });
+      scheduled = [];
+    }
+
+    function finalizeAndResolve(){
+      if (window.__activePlayToken === playSessionToken) { window.__activePlayToken = null; }
+      hideGoalBadge();
+
+      try {
+        var rows = L.moveRowsForExport().filter(function(r){ return r.mode_id===block.id; });
+        var csv  = L.toCSVMoves(rows);
+        csv = csvStripColumn(csv, "participant_id");
+        var metaObj = {
+          study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
+          block_id: block.id,
+          app_version: "v2995+stableId+authChoice+drive+overlayFull",
+          ts: new Date().toISOString(),
+          userAgent: navigator.userAgent
+        };
+        postToDrive(
+          { "moves.csv": csv, "meta.json": metaObj },
+          { session_id: "S_"+tsPrecise()+"_"+block.id }
+        );
+      } catch(e){ console.warn("Drive upload (moves) failed:", e); }
+
+      setTimeout(function(){
+        resolve(L.moveRowsForExport().filter(function(r){ return r.mode_id===block.id; }));
+      }, 80);
+    }
+
+    function stop(reason){
+      if (ended) return;
+      ended = true;
+
+      if (cd && typeof cd.stop === "function") { try { cd.stop(); } catch(e) {} }
+      clearScheduled();
+      hideGoalBadge();
+      hide();
+
+      if (block.id === "medium_mode" || block.id === "easy_mode") {
+        askYesNoAwareness(block)
+          .then(function(){ return askPostQuestions(block); })
+          .then(finalizeAndResolve);
+      } else {
+        askPostQuestions(block).then(finalizeAndResolve);
       }
+    }
 
-      var gm = new GameManager(size, KeyboardInputManager, HTMLActuator, NoStorageManager);
-      var freshActuator = gm.actuator;
+    if ((block.stop && block.stop.kind==="time" && block.stop.value) ||
+        (block.timer && block.timer.hard_cap_sec)) {
+      var secs = Number(
+        (block.timer && block.timer.hard_cap_sec) ||
+        (block.stop && block.stop.value) || 0
+      );
+      cd = startCountdown(secs, function(){ stop("time_done"); });
+    }
 
-      gm.grid = new Grid(size);
-      gm.score = 0; gm.over=false; gm.won=false; gm.keepPlaying=false;
+       var spawnRates = block && block.spawn && block.spawn.rates;
 
-      if (gm.actuator && typeof gm.actuator.clearMessage === "function") gm.actuator.clearMessage();
+      // ---- ODDBALL FLAGS (per game) ----
+      gm.oddballEnabled = (block.id === "medium_mode"); // only medium
+      gm.moveCount      = 0;                            // reset moves
+      gm.oddballSpawned = false;                        // only once
 
-      L.setContext({ participant_id: stableParticipantId(), mode_id: block.id });
-      L.newSession(block.id);
+      gm.addRandomTile = function () {
+        if (!gm.grid.cellsAvailable()) return;
 
-      var goalTile = isFinite(Number(block.goal_tile)) ? Number(block.goal_tile) : null;
-      var introMsg = goalTile
-        ? '<span style="display:block;margin-top:6px;font:600 18px/1.3 system-ui;color:#fff;">Goal: reach ' + goalTile + '</span>'
-        : "Press arrow keys to play";
-      show(block.description || block.id, "");
-      if (bodyEl) bodyEl.innerHTML = introMsg;
+        // pick value by spawnRates (if defined) or default 2048 logic
+        var position = gm.grid.randomAvailableCell();
+        var value = spawnRates
+          ? pickWeighted(spawnRates)
+          : (Math.random() < 0.9 ? 2 : 4);
 
-      var ov = document.getElementById("study-overlay");
-      if (ov) ov.style.pointerEvents = "none";
-      setTimeout(function(){ hide(); if (ov) ov.style.pointerEvents = ""; }, 5000);
-
-      if (goalTile) showGoalBadge(goalTile); else hideGoalBadge();
-
-      var ended=false, cd=null;
-      var scheduled = [];
-      function schedule(fn, ms){ var id=setTimeout(function(){ if(!ended) fn(); }, ms); scheduled.push(id); }
-      function clearScheduled(){ scheduled.forEach(function(id){ clearTimeout(id); }); scheduled = []; }
-
-      function finalizeAndResolve(){
-        if (window.__activePlayToken === playSessionToken) { window.__activePlayToken = null; }
-        hideGoalBadge();
-
-        // ==== DRIVE UPLOAD: moves + meta for this block ====
-        try {
-          var rows = L.moveRowsForExport().filter(function(r){ return r.mode_id===block.id; });
-          var csv  = L.toCSVMoves(rows);
-          csv = csvStripColumn(csv, "participant_id");
-          var metaObj = {
-            study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
-            block_id: block.id,
-            app_version: "v2989+stableId+authChoice+drive+overlayFull",
-            ts: new Date().toISOString(),
-            userAgent: navigator.userAgent
-          };
-          postToDrive({ "moves.csv": csv, "meta.json": metaObj }, { session_id: "S_"+tsPrecise()+"_"+block.id });
-        } catch(e){ console.warn("Drive upload (moves) failed:", e); }
-
-        setTimeout(function(){ 
-          resolve(L.moveRowsForExport().filter(function(r){ return r.mode_id===block.id; })); 
-        }, 80);
-      }
-
-      function stop(reason){
-        if (ended) return;
-        ended = true;
-
-        if (cd && typeof cd.stop === "function") { try { cd.stop(); } catch(e) {} }
-        clearScheduled();
-        hideGoalBadge();
-        hide();
-
-        // 👇 awareness card for BOTH easy and medium
-        if (block.id === "medium_mode" || block.id === "easy_mode") {
-          askYesNoAwareness(block)
-            .then(function(){ return askPostQuestions(block); })
-            .then(finalizeAndResolve);
-        } else {
-          askPostQuestions(block).then(finalizeAndResolve);
-        }
-      }
-
-      if ((block.stop && block.stop.kind==="time" && block.stop.value) || (block.timer && block.timer.hard_cap_sec)){
-        var secs = Number((block.timer && block.timer.hard_cap_sec) || (block.stop && block.stop.value) || 0);
-        cd = startCountdown(secs, function(){ stop("time_done"); });
-      }
-
-      var spawnRates = block && block.spawn && block.spawn.rates;
-      var origAdd = gm.addRandomTile.bind(gm);
-      gm.addRandomTile = function(){
-        if(!gm.grid.cellsAvailable()) return origAdd();
-        var cell = gm.grid.randomAvailableCell();
-        if (spawnRates) { gm.grid.insertTile(new Tile(cell, pickWeighted(spawnRates))); return; }
-        origAdd();
-      };
-
-      var hadGrid = applyStartGrid(gm, block.start_state);
-      if (!hadGrid) {
-        var hadPrefillBefore = (block.start_state && block.start_state.prefill) ? true : false;
-        if (block.start_state && block.start_state.prefill) {
-          prefillBoard(gm, block.start_state);
-        }
-        if (!hadPrefillBefore) {
-          var desiredInitial = (block.start_state && isFinite(Number(block.start_state.initial_tiles)))
-            ? Number(block.start_state.initial_tiles) : 1;
-          for (var k = 0; k < desiredInitial; k++) {
-            if (gm.grid.cellsAvailable()) gm.addRandomTile();
+        // ---- ODDBALL LOGIC (medium only) ----
+        var isOddball = false;
+        if (
+          gm.oddballEnabled &&     // only in medium_mode
+          !gm.oddballSpawned &&    // at most once
+          gm.moveCount >= 10 &&    // after 10 moves
+          gm.moveCount <= 40       // up to 40 moves
+        ) {
+          if (Math.random() < 0.30) {  // 30% chance per spawn
+            isOddball = true;
+            gm.oddballSpawned = true;
+            console.log("[ODDBALL] spawned at", position, "move", gm.moveCount);
           }
         }
-        gm.actuator.actuate(gm.grid, { score: 0 });
+
+        var tile = new Tile(position, value);
+        tile.isOddball = !!isOddball;
+
+        if (tile.isOddball && window.StudyLogger && StudyLogger.logOddballSpawn) {
+          StudyLogger.logOddballSpawn(tile);
+        }
+
+        gm.grid.insertTile(tile);
+
+        // 🔴 IMPORTANT: no timeout here, let it stay oddball.
+        // (We can later make it fade with CSS if you still want 3s only.)
+      };
+
+    // ---------- INITIAL GRID ----------
+    var hadGrid = applyStartGrid(gm, block.start_state);
+    if (!hadGrid) {
+      var hadPrefillBefore = (block.start_state && block.start_state.prefill) ? true : false;
+      if (block.start_state && block.start_state.prefill) {
+        prefillBoard(gm, block.start_state);
       }
+      if (!hadPrefillBefore) {
+        var desiredInitial = (block.start_state && isFinite(Number(block.start_state.initial_tiles)))
+          ? Number(block.start_state.initial_tiles) : 1;
+        for (var k = 0; k < desiredInitial; k++) {
+          if (gm.grid.cellsAvailable()) gm.addRandomTile();
+        }
+      }
+      gm.actuator.actuate(gm.grid, { score: 0 });
+    }
 
-      // --------- MOVE LOGGING ---------
-      var lastMoveAt = performance.now();
-      var inputs_total = 0;
-      function dirName(d){ return ({0:"up",1:"right",2:"down",3:"left"})[d] || String(d); }
+    // --------- MOVE LOGGING ---------
+    var lastMoveAt = performance.now();
+    var inputs_total = 0;
+    function dirName(d){ return ({0:"up",1:"right",2:"down",3:"left"})[d] || String(d); }
 
-      gm.inputManager.on("move", function(dir){
-        if (window.__activePlayToken !== playSessionToken) { return; }
+    gm.inputManager.on("move", function(dir){
+      if (window.__activePlayToken !== playSessionToken) { return; }
 
-        var now = performance.now();
-        var latencyMs = Math.max(1, Math.round(now - lastMoveAt));
-        lastMoveAt = now;
-        inputs_total += 1;
+      gm.moveCount++;   // <— IMPORTANT for oddball window
 
-        var n = gm.size;
-        var gridOut = Array.from({length:n}, function(_, y){
-          return Array.from({length:n}, function(_, x){
-            var cell = gm.grid.cells[x][y];
-            return cell ? cell.value : 0;
-          });
+      var now = performance.now();
+      var latencyMs = Math.max(1, Math.round(now - lastMoveAt));
+      lastMoveAt = now;
+      inputs_total += 1;
+
+      var n = gm.size;
+      var gridOut = Array.from({length:n}, function(_, y){
+        return Array.from({length:n}, function(_, x){
+          var cell = gm.grid.cells[x][y];
+          return cell ? cell.value : 0;
         });
-
-        L.logMove(inputs_total, dirName(dir), gm.score, latencyMs, gridOut);
       });
 
-      var oldActuate = freshActuator.actuate.bind(freshActuator);
-      freshActuator.actuate = function(grid,meta){
-        oldActuate(grid,meta);
-        var msgEl = document.querySelector(".game-message");
-        if (msgEl && !gm.over && !gm.won) msgEl.classList.remove("game-over","game-won");
-
-        if (meta && meta.terminated){
-          stop(meta.over ? "game_over" : "won");
-          return;
-        }
-
-        if (isFinite(goalTile)){
-          var maxNow=0;
-          grid.eachCell(function(x,y,c){ if(c) maxNow = Math.max(maxNow, c.value); });
-          if (maxNow>=goalTile && !gm.won){
-            gm.won = true;
-            show("You win!", "Reached " + goalTile);
-            setTimeout(function(){ stop("goal_reached"); }, 600);
-          }
-        }
-      };
-
-      // ---- Medium-mode flashes ----
-      if (block.id === "medium_mode") {
-        function getRandomTileEl(){
-          var inners = Array.prototype.slice.call(document.querySelectorAll(".tile .tile-inner"));
-          return inners.length ? inners[Math.floor(Math.random()*inners.length)] : null;
-        }
-        function flashTileEl(el, ms){
-          ms = ms || 1300; // brighter duration
-          if(!el) return;
-          el.classList.add("flash-brief");
-          setTimeout(function(){ el.classList.remove("flash-brief"); }, ms);
-        }
-        function jitter(base, spread){ spread = spread || 2000; return Math.max(0, base + Math.floor((Math.random()*spread) - spread/2)); }
-
-        schedule(function(){ flashTileEl(getRandomTileEl(), 1000); }, jitter(15000, 2500));
-        schedule(function(){ flashTileEl(getRandomTileEl(), 1000); }, jitter(65000, 3000));
-      }
+      L.logMove(inputs_total, dirName(dir), gm.score, latencyMs, gridOut);
     });
-  }
+
+    var oldActuate = freshActuator.actuate.bind(freshActuator);
+    freshActuator.actuate = function(grid,meta){
+      oldActuate(grid,meta);
+      var msgEl = document.querySelector(".game-message");
+      if (msgEl && !gm.over && !gm.won) msgEl.classList.remove("game-over","game-won");
+
+      if (meta && meta.terminated){
+        stop(meta.over ? "game_over" : "won");
+        return;
+      }
+
+      if (isFinite(goalTile)){
+        var maxNow=0;
+        grid.eachCell(function(x,y,c){ if(c) maxNow = Math.max(maxNow, c.value); });
+        if (maxNow>=goalTile && !gm.won){
+          gm.won = true;
+          show("You win!", "Reached " + goalTile);
+          setTimeout(function(){ stop("goal_reached"); }, 600);
+        }
+      }
+    };
+  });
+}
+
 
   // ================= TESTS =================
   function runTestsBlock(cfg, block){
@@ -799,11 +1065,9 @@ document.addEventListener("DOMContentLoaded", function () {
       L.setContext({ participant_id: stableParticipantId(), mode_id:block.id });
       L.newSession(block.id);
 
-      // Carry awareness to tests CSV
       if (window.__pendingAwareness) {
         var p = window.__pendingAwareness;
         try {
-          // 👇 log under the CURRENT tests block; keep origin in the item id
           L.logTest(
             block.id,
             "noticed_color_change_from_" + p.block_id,
@@ -834,7 +1098,7 @@ document.addEventListener("DOMContentLoaded", function () {
               } else { write(i, item); }
             });
           } else if (typeof res === "object") {
-            var last = res; // if runTests returns object
+            var last = res;
             Object.keys(last).forEach(function(k){ write(k, last[k]); });
           } else {
             write("result", res);
@@ -848,7 +1112,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }).catch(function(e){
         console.error("TestsUI.runTests error:", e);
       }).finally(function(){
-        // ==== DRIVE UPLOAD: tests + meta for this block ====
         try {
           var rows = L.testRowsForExport().filter(function(r){ return r.mode_id===block.id; });
           var csv  = L.toCSVTests(rows);
@@ -856,11 +1119,14 @@ document.addEventListener("DOMContentLoaded", function () {
           var metaObj = {
             study_id: (cfg && cfg.meta && cfg.meta.study_id) || "study",
             block_id: block.id,
-            app_version: "v2989+stableId+authChoice+drive+overlayFull",
+            app_version: "v2995+stableId+authChoice+drive+overlayFull",
             ts: new Date().toISOString(),
             userAgent: navigator.userAgent
           };
-          postToDrive({ "tests.csv": csv, "meta.json": metaObj }, { session_id: "S_"+tsPrecise()+"_"+block.id });
+          postToDrive(
+            { "tests.csv": csv, "meta.json": metaObj },
+            { session_id: "S_"+tsPrecise()+"_"+block.id }
+          );
         } catch(e){ console.warn("Drive upload (tests) failed:", e); }
 
         resolve();
@@ -913,7 +1179,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 var rows = L.moveRowsForExport().filter(function(r){ return r.mode_id===id; });
                 var csv  = L.toCSVMoves(rows);
                 var name = buildName(output.filename_pattern, meta, id, "moves");
-                // L.download(name, csv);  // disabled: no browser auto-download
+                // no auto-download
               }
               loop(i+1);
             });
@@ -925,7 +1191,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 var rows = L.testRowsForExport().filter(function(r){ return r.mode_id===id; });
                 var csv  = L.toCSVTests(rows);
                 var name = buildName(output.tests_filename_pattern, meta, id, "tests");
-                // L.download(name, csv);  // disabled: no browser auto-download
               }
               loop(i+1);
             });
@@ -939,9 +1204,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ---------- Boot ----------
   loadConfigSmart().then(async function(cfg){
-    // Prompt once at start: Google vs Guest (blocking overlay)
+    // Google vs guest
     await askAuthChoicePersistent();
-    // Set base context and start
+
+    // Only ask demographics when needed (with same/new question)
+    await ensureDemographicsOnce();
+
+    // Start study
     L.setContext({ participant_id: stableParticipantId() });
     return runStudy(cfg);
   }).catch(function(e){
@@ -950,5 +1219,3 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
 })(); // end IIFE
-
-

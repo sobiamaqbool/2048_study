@@ -31,7 +31,6 @@ HTMLActuator.prototype.actuate = function (grid, metadata) {
         self.message(true); // You win!
       }
     }
-
   });
 };
 
@@ -54,8 +53,22 @@ HTMLActuator.prototype.addTile = function (tile) {
   var position  = tile.previousPosition || { x: tile.x, y: tile.y };
   var positionClass = this.positionClass(position);
 
-  // We can't use classlist because it somehow glitches when replacing classes
+  // Base classes
   var classes = ["tile", "tile-" + tile.value, positionClass];
+
+  // ===== ODDBALL: add special class and remove after 3 s =====
+  if (tile.isOddball) {
+    classes.push("tile-oddball");
+    console.log("RENDERING ODDBALL TILE", tile, classes);
+
+    // Keep oddball look for 3 seconds, then back to normal
+    setTimeout(function () {
+      // Check wrapper still exists
+      if (wrapper && wrapper.parentNode) {
+        wrapper.classList.remove("tile-oddball");
+      }
+    }, 3000);
+  }
 
   if (tile.value > 2048) classes.push("tile-super");
 
@@ -65,16 +78,15 @@ HTMLActuator.prototype.addTile = function (tile) {
   inner.textContent = tile.value;
 
   if (tile.previousPosition) {
-    // Make sure that the tile gets rendered in the previous position first
+    // Smooth movement animation
     window.requestAnimationFrame(function () {
       classes[2] = self.positionClass({ x: tile.x, y: tile.y });
-      self.applyClasses(wrapper, classes); // Update the position
+      self.applyClasses(wrapper, classes);
     });
   } else if (tile.mergedFrom) {
     classes.push("tile-merged");
     this.applyClasses(wrapper, classes);
 
-    // Render the tiles that merged
     tile.mergedFrom.forEach(function (merged) {
       self.addTile(merged);
     });
@@ -83,12 +95,10 @@ HTMLActuator.prototype.addTile = function (tile) {
     this.applyClasses(wrapper, classes);
   }
 
-  // Add the inner part of the tile to the wrapper
   wrapper.appendChild(inner);
-
-  // Put the tile on the board
   this.tileContainer.appendChild(wrapper);
 };
+
 
 HTMLActuator.prototype.applyClasses = function (element, classes) {
   element.setAttribute("class", classes.join(" "));
