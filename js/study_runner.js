@@ -133,7 +133,6 @@ document.addEventListener("DOMContentLoaded", function () {
     "#study-form label{display:block;font:600 15px system-ui;margin-bottom:6px;color:var(--thText);}",
 
     /* Uniform classic fields: age + all dropdowns */
-     /* Uniform classic fields: age + all dropdowns */
 "#study-form input[type=number], #study-form select{" +
 "  width:100%;" +
 "  height:40px;" +
@@ -148,17 +147,22 @@ document.addEventListener("DOMContentLoaded", function () {
 "  appearance:none;" +
 "}",
 
+"@media (max-width: 768px){" +
+"  #study-form select{" +
+"    -webkit-appearance: menulist;" +
+"    appearance: auto;" +
+"    background:#FFFFFF;" +
+"    color:#000000;" +
+"  }" +
+"}",
+
 "#study-form input[type=number]:focus, #study-form select:focus{" +
 "  outline:none;" +
 "  border-color:#F4E1C1;" +
 "  box-shadow:0 0 0 2px rgba(244,225,193,.4);" +
 "}",
 
-/* ⭐ FIX: dropdown options visible on Android */
-"#study-form select option{" +
-"  color:#1C1917 !important;" +
-"  background:#FFFFFF !important;" +
-"}",
+
 
 
     "#study-submit{margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--thBorder);background:var(--th);color:var(--thText);font:700 14px system-ui;cursor:pointer;}",
