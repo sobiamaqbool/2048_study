@@ -1,6 +1,6 @@
 // study_runner.js — v=2997 (oddball + demographics, same-person check)
 
-console.log("study_runner loaded v=4000");
+console.log("study_runner loaded v=4001");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -802,12 +802,13 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 // Awareness card for easy + medium, with its own tests.csv export
+// Awareness card for easy + medium, with its own tests.csv export
 function askYesNoAwareness(block) {
   return new Promise(function (resolve) {
-    // Make a mini "mode" id for logger + export
-    var mid = block.id + "_awareness"; // e.g. "easy_mode_awareness"
+    // separate mode for each block, e.g. "medium_mode_awareness"
+    var mid = block.id + "_awareness";
 
-    // Start a logger session (like demographics)
+    // start logger session (same pattern as demographics)
     try {
       if (window.L && typeof L.setContext === "function") {
         L.setContext({ participant_id: stableParticipantId(), mode_id: mid });
@@ -816,7 +817,7 @@ function askYesNoAwareness(block) {
         L.newSession(mid);
       }
     } catch (e) {
-      console.warn("Awareness: could not start logger session:", e);
+      console.warn("[AWARENESS] could not start logger session:", e);
     }
 
     var host = ensureHost_();
@@ -846,29 +847,31 @@ function askYesNoAwareness(block) {
 
     function finish(val) {
       var yes = (val === "Yes");
+      console.log("[AWARENESS] answer:", val, "mode:", mid);
 
-      // Old StudyLogger hook (keep it)
+      // keep old StudyLogger hook if present
       try {
         if (window.StudyLogger && typeof StudyLogger.logOddballReport === "function") {
           StudyLogger.logOddballReport(yes);
-          console.log("Oddball awareness logged (StudyLogger):", val);
+          console.log("[AWARENESS] StudyLogger logged");
         }
       } catch (e) {
-        console.warn("Oddball StudyLogger logging failed:", e);
+        console.warn("[AWARENESS] StudyLogger failed:", e);
       }
 
-      // NEW: log into Tests logger
+      // 1) log into Tests logger
       try {
         if (window.L && typeof L.logTest === "function") {
-          // mode_id = mid, item_id = "oddball_awareness"
           L.logTest(mid, "oddball_awareness", "awareness", yes ? 1 : 0);
-          console.log("Oddball awareness logged (Tests logger):", yes ? 1 : 0);
+          console.log("[AWARENESS] L.logTest done");
+        } else {
+          console.warn("[AWARENESS] L.logTest not available");
         }
       } catch (e) {
-        console.warn("Awareness L.logTest failed:", e);
+        console.warn("[AWARENESS] L.logTest failed:", e);
       }
 
-      // NEW: export a small tests.csv for this awareness block
+      // 2) export tests.csv for this awareness block
       try {
         if (window.L &&
             typeof L.testRowsForExport === "function" &&
@@ -877,6 +880,7 @@ function askYesNoAwareness(block) {
           var rows = L.testRowsForExport().filter(function (r) {
             return r.mode_id === mid;
           });
+          console.log("[AWARENESS] rows for export:", rows.length);
 
           if (rows && rows.length) {
             var csv = L.toCSVTests(rows);
@@ -894,10 +898,15 @@ function askYesNoAwareness(block) {
               { "tests.csv": csv, "meta.json": metaObj },
               { session_id: "S_" + tsPrecise() + "_" + mid }
             );
+            console.log("[AWARENESS] postToDrive sent");
+          } else {
+            console.warn("[AWARENESS] no rows to export for", mid);
           }
+        } else {
+          console.warn("[AWARENESS] export helpers missing");
         }
       } catch (e) {
-        console.warn("Drive upload (awareness) failed:", e);
+        console.warn("[AWARENESS] export failed:", e);
       }
 
       cleanup();
