@@ -210,6 +210,18 @@ document.addEventListener("DOMContentLoaded", function () {
 "#yn-card .radio-group input[type=radio]{" +
 "  accent-color:#F4E1C1;" +
 "}",
+/* Make demographics card scrollable on ALL devices */
+"#yn-card.demo-card{" +
+"  max-height:80vh;" +           /* never go past screen height */
+"  overflow-y:auto;" +           /* allow scrolling */
+"  overscroll-behavior:contain;" +
+"  scrollbar-width:thin;" +       /* Firefox small scrollbar */
+"}",
+
+/* Padding around questions so they don't touch bottom */
+"#yn-card.demo-card .q{" +
+"  margin-bottom:12px;" +
+"}",
 
 
     "#demo-submit.yn-btn{background:#FCFAF7;color:#1B1A18;width:100%;padding:12px 14px;border-radius:10px;border:1px solid #D9CBB8;font:700 14px system-ui;}",
