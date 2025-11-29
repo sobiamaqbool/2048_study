@@ -1,6 +1,6 @@
 // study_runner.js — v=2997 (oddball + demographics, same-person check)
 
-console.log("study_runner loaded v=4002");
+console.log("study_runner loaded v=4003");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -801,10 +801,11 @@ document.addEventListener("DOMContentLoaded", function () {
       form.appendChild(submit);
     });
   }
-// Awareness card for easy + medium, with its own tests.csv export
 
+// Awareness card, saves its own tiny tests.csv via postToDrive
 function askYesNoAwareness(block) {
   return new Promise(function (resolve) {
+    var mid = block.id + "_awareness";   // e.g. "medium_mode_awareness"
 
     var host = ensureHost_();
     host.innerHTML = `
@@ -833,8 +834,9 @@ function askYesNoAwareness(block) {
 
     function finish(val) {
       var yes = (val === "Yes");
+      console.log("[AWARENESS] answer:", val, "block:", block.id);
 
-      // keep old StudyLogger hook if it exists
+      // keep old StudyLogger hook
       try {
         if (window.StudyLogger && typeof StudyLogger.logOddballReport === "function") {
           StudyLogger.logOddballReport(yes);
@@ -843,33 +845,36 @@ function askYesNoAwareness(block) {
         console.warn("[AWARENESS] StudyLogger failed:", e);
       }
 
-      // 🔹 NEW: log into the SAME tests block as TLX/SAM/Stroop
+      // ===== DIRECT CSV + postToDrive (no L used) =====
       try {
-        if (window.L && typeof L.logTest === "function") {
-          var testsModeId;
+        var now = new Date().toISOString();
+        var resp = yes ? 1 : 0;
 
-          if (block.id === "easy_mode") {
-            testsModeId = "tests_after_easy";
-          } else if (block.id === "medium_mode") {
-            testsModeId = "tests_after_medium";
-          } else {
-            // fallback, just in case
-            testsModeId = block.id + "_awareness";
-          }
+        // simple tests-style CSV
+        var csv =
+          "timestamp,mode_id,item_id,item_type,response\n" +
+          now + "," +
+          mid + "," +
+          "oddball_awareness," +
+          "awareness," +
+          resp + "\n";
 
-          L.logTest(
-            testsModeId,              // mode_id that export already uses
-            "oddball_awareness",      // test_id / item_id
-            "awareness",              // item_type
-            yes ? 1 : 0               // response
-          );
+        var metaObj = {
+          study_id: "study",
+          block_id: mid,
+          app_version: "v4002_awareness",
+          ts: now,
+          userAgent: navigator.userAgent
+        };
 
-          console.log("[AWARENESS] logged:", testsModeId, yes ? 1 : 0);
-        } else {
-          console.warn("[AWARENESS] L.logTest not available");
-        }
+        postToDrive(
+          { "tests.csv": csv, "meta.json": metaObj },
+          { session_id: "S_" + tsPrecise() + "_" + mid }
+        );
+
+        console.log("[AWARENESS] CSV posted to Drive");
       } catch (e) {
-        console.warn("[AWARENESS] L.logTest error:", e);
+        console.warn("[AWARENESS] postToDrive failed:", e);
       }
 
       cleanup();
@@ -889,7 +894,7 @@ function askYesNoAwareness(block) {
   });
 }
 
-  
+
 
 
   // ================= REST =================
