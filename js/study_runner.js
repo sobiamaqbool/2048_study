@@ -133,7 +133,8 @@ document.addEventListener("DOMContentLoaded", function () {
     "#study-form label{display:block;font:600 15px system-ui;margin-bottom:6px;color:var(--thText);}",
 
     /* Uniform classic fields: age + all dropdowns */
-"#study-form input[type=number], #study-form select{" +
+"/* Uniform classic fields: age */" +
+"#study-form input[type=number]{" +      // ⬅ select removed here
 "  width:100%;" +
 "  height:40px;" +
 "  padding:8px 10px;" +
@@ -146,6 +147,17 @@ document.addEventListener("DOMContentLoaded", function () {
 "  -webkit-appearance:none;" +
 "  appearance:none;" +
 "}",
+
+"/* Simpler styling for dropdowns (let Android control colors) */" +
+"#study-form select{" +
+"  width:100%;" +
+"  height:40px;" +
+"  padding:8px 10px;" +
+"  border-radius:8px;" +
+"  border:1px solid #D3C5B6;" +
+"  box-sizing:border-box;" +
+"}",
+
 
 "@media (max-width: 768px){" +
 "  #study-form select{" +
