@@ -1,6 +1,6 @@
 // study_runner.js — v=2997 (oddball + demographics, same-person check)
 
-console.log("study_runner loaded v=4001");
+console.log("study_runner loaded v=4002");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -802,23 +802,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 // Awareness card for easy + medium, with its own tests.csv export
-// Awareness card for easy + medium, with its own tests.csv export
+
 function askYesNoAwareness(block) {
   return new Promise(function (resolve) {
-    // separate mode for each block, e.g. "medium_mode_awareness"
-    var mid = block.id + "_awareness";
-
-    // start logger session (same pattern as demographics)
-    try {
-      if (window.L && typeof L.setContext === "function") {
-        L.setContext({ participant_id: stableParticipantId(), mode_id: mid });
-      }
-      if (window.L && typeof L.newSession === "function") {
-        L.newSession(mid);
-      }
-    } catch (e) {
-      console.warn("[AWARENESS] could not start logger session:", e);
-    }
 
     var host = ensureHost_();
     host.innerHTML = `
@@ -847,66 +833,43 @@ function askYesNoAwareness(block) {
 
     function finish(val) {
       var yes = (val === "Yes");
-      console.log("[AWARENESS] answer:", val, "mode:", mid);
 
-      // keep old StudyLogger hook if present
+      // keep old StudyLogger hook if it exists
       try {
         if (window.StudyLogger && typeof StudyLogger.logOddballReport === "function") {
           StudyLogger.logOddballReport(yes);
-          console.log("[AWARENESS] StudyLogger logged");
         }
       } catch (e) {
         console.warn("[AWARENESS] StudyLogger failed:", e);
       }
 
-      // 1) log into Tests logger
+      // 🔹 NEW: log into the SAME tests block as TLX/SAM/Stroop
       try {
         if (window.L && typeof L.logTest === "function") {
-          L.logTest(mid, "oddball_awareness", "awareness", yes ? 1 : 0);
-          console.log("[AWARENESS] L.logTest done");
+          var testsModeId;
+
+          if (block.id === "easy_mode") {
+            testsModeId = "tests_after_easy";
+          } else if (block.id === "medium_mode") {
+            testsModeId = "tests_after_medium";
+          } else {
+            // fallback, just in case
+            testsModeId = block.id + "_awareness";
+          }
+
+          L.logTest(
+            testsModeId,              // mode_id that export already uses
+            "oddball_awareness",      // test_id / item_id
+            "awareness",              // item_type
+            yes ? 1 : 0               // response
+          );
+
+          console.log("[AWARENESS] logged:", testsModeId, yes ? 1 : 0);
         } else {
           console.warn("[AWARENESS] L.logTest not available");
         }
       } catch (e) {
-        console.warn("[AWARENESS] L.logTest failed:", e);
-      }
-
-      // 2) export tests.csv for this awareness block
-      try {
-        if (window.L &&
-            typeof L.testRowsForExport === "function" &&
-            typeof L.toCSVTests === "function") {
-
-          var rows = L.testRowsForExport().filter(function (r) {
-            return r.mode_id === mid;
-          });
-          console.log("[AWARENESS] rows for export:", rows.length);
-
-          if (rows && rows.length) {
-            var csv = L.toCSVTests(rows);
-            csv = csvStripColumn(csv, "participant_id");
-
-            var metaObj = {
-              study_id: "study",
-              block_id: mid,
-              app_version: "v_awareness_1",
-              ts: new Date().toISOString(),
-              userAgent: navigator.userAgent
-            };
-
-            postToDrive(
-              { "tests.csv": csv, "meta.json": metaObj },
-              { session_id: "S_" + tsPrecise() + "_" + mid }
-            );
-            console.log("[AWARENESS] postToDrive sent");
-          } else {
-            console.warn("[AWARENESS] no rows to export for", mid);
-          }
-        } else {
-          console.warn("[AWARENESS] export helpers missing");
-        }
-      } catch (e) {
-        console.warn("[AWARENESS] export failed:", e);
+        console.warn("[AWARENESS] L.logTest error:", e);
       }
 
       cleanup();
@@ -915,11 +878,8 @@ function askYesNoAwareness(block) {
 
     function onKey(ev) {
       var k = ev.key.toLowerCase();
-      if (k === "y") {
-        finish("Yes");
-      } else if (k === "n") {
-        finish("No");
-      }
+      if (k === "y") finish("Yes");
+      else if (k === "n") finish("No");
     }
 
     document.getElementById("yn-yes").onclick = function () { finish("Yes"); };
@@ -929,6 +889,7 @@ function askYesNoAwareness(block) {
   });
 }
 
+  
 
 
   // ================= REST =================
