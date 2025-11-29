@@ -199,23 +199,16 @@ document.addEventListener("DOMContentLoaded", function () {
     ".yn-btn:active{transform:translateY(1px);}",
     ".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}",
     /* Demographics dropdowns (Age card) */
-/* Demographics dropdowns (Age card) */
-"#yn-card select{" +
-"  width:100%;" +
-"  height:40px;" +
-"  padding:8px 10px;" +
-"  border-radius:8px;" +
-"  border:1px solid #D3C5B6;" +
-"  box-sizing:border-box;" +
-"  background:#FFFFFF;" +     // White so Android popup doesn't invert text
-"  color:#000000;" +           // Black text so it's visible in popup
-"  -webkit-appearance: menulist;" +
-"  appearance:auto;" +
+"#yn-card .radio-group label{" +
+"  display:flex;" +
+"  align-items:center;" +
+"  gap:8px;" +
+"  margin-bottom:4px;" +
+"  color:#f3eee8;" +
+"  font:500 13px system-ui;" +
 "}",
-
-"#yn-card select option{" +
-"  color:#000000 !important;" +
-"  background:#FFFFFF !important;" +
+"#yn-card .radio-group input[type=radio]{" +
+"  accent-color:#F4E1C1;" +
 "}",
 
 
@@ -332,166 +325,168 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ==== DEMOGRAPHICS (form before study) ====
   function askDemographics() {
-    return new Promise(function(resolve){
-      var mid = "demographics";
+  return new Promise(function (resolve) {
+    var mid = "demographics";
 
-      try {
-        if (L && typeof L.setContext === "function") {
-          L.setContext({ participant_id: stableParticipantId(), mode_id: mid });
-        }
-        if (L && typeof L.newSession === "function") {
-          L.newSession(mid);
-        }
-      } catch (e) {
-        console.warn("Demographics: could not start logger session:", e);
+    try {
+      if (L && typeof L.setContext === "function") {
+        L.setContext({ participant_id: stableParticipantId(), mode_id: mid });
       }
+      if (L && typeof L.newSession === "function") {
+        L.newSession(mid);
+      }
+    } catch (e) {
+      console.warn("Demographics: could not start logger session:", e);
+    }
 
-      const host = ensureHost_();
-      host.innerHTML = `
-        <div id="yn-card" class="demo-card">
-          <div id="yn-title">Before we start</div>
-          <div id="yn-sub">Please answer a few short questions.</div>
+    const host = ensureHost_();
+    host.innerHTML = `
+      <div id="yn-card" class="demo-card">
+        <div id="yn-title">Before we start</div>
+        <div id="yn-sub">Please answer a few short questions.</div>
 
-          <div class="q">
-            <label>Age</label>
-            <input id="demo-age" type="number" min="10" max="100" style="width:100%">
-          </div>
+        <div class="q">
+          <label>Age</label>
+          <input id="demo-age" type="number" min="10" max="100" style="width:100%">
+        </div>
 
-          <div class="q">
-            <label>Gender</label>
-            <select id="demo-gender" style="width:100%">
-              <option value="">Select…</option>
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div class="q">
-            <label>Highest education level</label>
-            <select id="demo-edu" style="width:100%">
-              <option value="">Select…</option>
-              <option value="school">School / College</option>
-              <option value="bachelors">Bachelor</option>
-              <option value="masters">Master</option>
-              <option value="phd">PhD</option>
-            </select>
-          </div>
-
-          <div class="q">
-            <label>How often do you play video / mobile games?</label>
-            <select id="demo-games" style="width:100%">
-              <option value="">Select…</option>
-              <option value="never">Almost never</option>
-              <option value="monthly">A few times per month</option>
-              <option value="weekly">1–3 times per week</option>
-              <option value="daily">Most days</option>
-            </select>
-          </div>
-
-          <div class="q">
-            <label>Vision</label>
-            <select id="demo-vision" style="width:100%">
-              <option value="">Select…</option>
-              <option value="normal">Normal vision</option>
-              <option value="glasses_contacts">Glasses / contacts</option>
-              <option value="vision_disorder">Known vision disorder</option>
-            </select>
-          </div>
-
-          <div class="q">
-            <label>Handedness</label>
-            <select id="demo-hand" style="width:100%">
-              <option value="">Select…</option>
-              <option value="right">Right-handed</option>
-              <option value="left">Left-handed</option>
-              <option value="both">Use both hands</option>
-            </select>
-          </div>
-
-          <button id="demo-submit" class="yn-btn" style="width:100%;margin-top:6px;">
-            Continue
-          </button>
-
-          <div id="demo-error" style="color:#ffb3b3;font:600 13px system-ui;text-align:center;margin-top:6px;display:none;">
-            Please answer all questions.
+        <div class="q">
+          <label>Gender</label>
+          <div class="radio-group" id="demo-gender-group">
+            <label><input type="radio" name="demo-gender" value="female"> Female</label>
+            <label><input type="radio" name="demo-gender" value="male"> Male</label>
+            <label><input type="radio" name="demo-gender" value="other"> Other</label>
           </div>
         </div>
-      `;
 
-      show("", "");
+        <div class="q">
+          <label>Highest education level</label>
+          <div class="radio-group" id="demo-edu-group">
+            <label><input type="radio" name="demo-edu" value="school"> School / College</label>
+            <label><input type="radio" name="demo-edu" value="bachelors"> Bachelor</label>
+            <label><input type="radio" name="demo-edu" value="masters"> Master</label>
+            <label><input type="radio" name="demo-edu" value="phd"> PhD</label>
+          </div>
+        </div>
 
-      document.getElementById("demo-submit").onclick = function(){
-        const age    = document.getElementById("demo-age").value;
-        const gender = document.getElementById("demo-gender").value;
-        const edu    = document.getElementById("demo-edu").value;
-        const games  = document.getElementById("demo-games").value;
-        const vision = document.getElementById("demo-vision").value;
-        const hand   = document.getElementById("demo-hand").value;
+        <div class="q">
+          <label>How often do you play video / mobile games?</label>
+          <div class="radio-group" id="demo-games-group">
+            <label><input type="radio" name="demo-games" value="never"> Almost never</label>
+            <label><input type="radio" name="demo-games" value="monthly"> A few times per month</label>
+            <label><input type="radio" name="demo-games" value="weekly"> 1–3 times per week</label>
+            <label><input type="radio" name="demo-games" value="daily"> Most days</label>
+          </div>
+        </div>
 
-        if (!age || !gender || !edu || !games || !vision || !hand) {
-          const e = document.getElementById("demo-error");
-          e.style.display = "block";
-          return;
+        <div class="q">
+          <label>Vision</label>
+          <div class="radio-group" id="demo-vision-group">
+            <label><input type="radio" name="demo-vision" value="normal"> Normal vision</label>
+            <label><input type="radio" name="demo-vision" value="glasses_contacts"> Glasses / contacts</label>
+            <label><input type="radio" name="demo-vision" value="vision_disorder"> Known vision disorder</label>
+          </div>
+        </div>
+
+        <div class="q">
+          <label>Handedness</label>
+          <div class="radio-group" id="demo-hand-group">
+            <label><input type="radio" name="demo-hand" value="right"> Right-handed</label>
+            <label><input type="radio" name="demo-hand" value="left"> Left-handed</label>
+            <label><input type="radio" name="demo-hand" value="both"> Use both hands</label>
+          </div>
+        </div>
+
+        <button id="demo-submit" class="yn-btn" style="width:100%;margin-top:6px;">
+          Continue
+        </button>
+
+        <div id="demo-error" style="color:#ffb3b3;font:600 13px system-ui;text-align:center;margin-top:6px;display:none;">
+          Please answer all questions.
+        </div>
+      </div>
+    `;
+
+    show("", "");
+
+    document.getElementById("demo-submit").onclick = function () {
+      const age = document.getElementById("demo-age").value;
+
+      const gEl = document.querySelector('input[name="demo-gender"]:checked');
+      const eEl = document.querySelector('input[name="demo-edu"]:checked');
+      const gaEl = document.querySelector('input[name="demo-games"]:checked');
+      const vEl = document.querySelector('input[name="demo-vision"]:checked');
+      const hEl = document.querySelector('input[name="demo-hand"]:checked');
+
+      const gender = gEl && gEl.value;
+      const edu    = eEl && eEl.value;
+      const games  = gaEl && gaEl.value;
+      const vision = vEl && vEl.value;
+      const hand   = hEl && hEl.value;
+
+      if (!age || !gender || !edu || !games || !vision || !hand) {
+        const e = document.getElementById("demo-error");
+        e.style.display = "block";
+        return;
+      }
+
+      try {
+        if (L && typeof L.logTest === "function") {
+          L.logTest(mid, "age",        "profile", age);
+          L.logTest(mid, "gender",     "profile", gender);
+          L.logTest(mid, "education",  "profile", edu);
+          L.logTest(mid, "games",      "profile", games);
+          L.logTest(mid, "vision",     "profile", vision);
+          L.logTest(mid, "handedness", "profile", hand);
         }
+      } catch (e) {
+        console.warn("Demographics logging failed:", e);
+      }
 
-        try {
-          if (L && typeof L.logTest === "function") {
-            L.logTest(mid, "age",        "profile", age);
-            L.logTest(mid, "gender",     "profile", gender);
-            L.logTest(mid, "education",  "profile", edu);
-            L.logTest(mid, "games",      "profile", games);
-            L.logTest(mid, "vision",     "profile", vision);
-            L.logTest(mid, "handedness", "profile", hand);
+      // export demographics to Drive
+      try {
+        if (L && typeof L.testRowsForExport === "function" &&
+            typeof L.toCSVTests === "function") {
+
+          var rows = L.testRowsForExport().filter(function (r) {
+            return r.mode_id === mid;
+          });
+
+          if (rows && rows.length) {
+            var csv = L.toCSVTests(rows);
+            csv = csvStripColumn(csv, "participant_id");
+
+            var metaObj = {
+              study_id: "study",
+              block_id: mid,
+              app_version: "v2995+demographics",
+              ts: new Date().toISOString(),
+              userAgent: navigator.userAgent
+            };
+
+            postToDrive(
+              { "tests.csv": csv, "meta.json": metaObj },
+              { session_id: "S_" + tsPrecise() + "_" + mid }
+            );
           }
-        } catch(e){
-          console.warn("Demographics logging failed:", e);
         }
+      } catch (e) {
+        console.warn("Drive upload (demographics) failed:", e);
+      }
 
-        // export demographics to Drive
-        try {
-          if (L && typeof L.testRowsForExport === "function" &&
-                  typeof L.toCSVTests === "function") {
+      hide();
+      try {
+        localStorage.setItem("demographics_done", "1");
+      } catch (e) {
+        console.warn("could not set demographics_done", e);
+      }
 
-            var rows = L.testRowsForExport().filter(function(r){
-              return r.mode_id === mid;
-            });
+      host.innerHTML = "";
+      resolve();
+    };
+  });
+}
 
-            if (rows && rows.length) {
-              var csv = L.toCSVTests(rows);
-              csv = csvStripColumn(csv, "participant_id");
-
-              var metaObj = {
-                study_id: "study",
-                block_id: mid,
-                app_version: "v2995+demographics",
-                ts: new Date().toISOString(),
-                userAgent: navigator.userAgent
-              };
-
-              postToDrive(
-                { "tests.csv": csv, "meta.json": metaObj },
-                { session_id: "S_" + tsPrecise() + "_" + mid }
-              );
-            }
-          }
-        } catch(e){
-          console.warn("Drive upload (demographics) failed:", e);
-        }
-
-        hide();
-        // mark that demographics were completed on this browser
-        try {
-          localStorage.setItem("demographics_done", "1");
-        } catch (e) {
-          console.warn("could not set demographics_done", e);
-        }
-
-        host.innerHTML = "";
-        resolve();
-      };
-    });
-  }
 
   // ==== SAME PERSON OR NEW PERSON? ====
   function ensureDemographicsOnce() {
