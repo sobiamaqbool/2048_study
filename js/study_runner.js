@@ -825,19 +825,35 @@ document.addEventListener("DOMContentLoaded", function () {
         hide();
       }
 
-      function done(val){
-        try {
-          if (window.StudyLogger && StudyLogger.logOddballReport) {
-            StudyLogger.logOddballReport(val === "Yes");
-            console.log("Oddball awareness logged:", val);
-          }
-        } catch (e) {
-          console.warn("Oddball logging failed:", e);
-        }
+  
+function done(val){
+  var yes = (val === "Yes");
 
-        cleanup();
-        resolve();
-      }
+  // 1) Keep existing StudyLogger hook
+  try {
+    if (window.StudyLogger && typeof StudyLogger.logOddballReport === "function") {
+      StudyLogger.logOddballReport(yes);
+      console.log("Oddball awareness logged:", val);
+    }
+  } catch (e) {
+    console.warn("Oddball logging failed:", e);
+  }
+
+  // 2) NEW: log into the Tests logger so it can go to tests.csv
+  try {
+    if (window.L && typeof L.logTest === "function") {
+      // mode_id = block.id, test_id = "oddball_awareness"
+      L.logTest(block.id, "oddball_awareness", "awareness", yes ? 1 : 0);
+    }
+  } catch (e) {
+    console.warn("Awareness L.logTest failed:", e);
+  }
+
+  cleanup();
+  resolve();
+}
+
+
 
       function onk(e){
         if (e.key === "y" || e.key === "Y") { done("Yes"); }
