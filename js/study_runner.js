@@ -1,6 +1,6 @@
 // study_runner.js — v=2997 (oddball + demographics, same-person check)
 
-console.log("study_runner loaded v=2997");
+console.log("study_runner loaded v=4000");
 
 // ====== DRIVE UPLOAD CONFIG ======
 var DRIVE_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyhmhAt0jVTSKWAeRJv296Rkg01tdcm2d_UAQq51JQT0aKQ1Cnn1s386xBlQMTYz5VL/exec";
@@ -801,70 +801,126 @@ document.addEventListener("DOMContentLoaded", function () {
       form.appendChild(submit);
     });
   }
+// Awareness card for easy + medium, with its own tests.csv export
+function askYesNoAwareness(block) {
+  return new Promise(function (resolve) {
+    // Make a mini "mode" id for logger + export
+    var mid = block.id + "_awareness"; // e.g. "easy_mode_awareness"
 
-  function askYesNoAwareness(block) {
-    return new Promise(function(resolve){
-      var host = document.getElementById("study-form");
-      if (!host) { host = document.createElement("div"); host.id = "study-form"; overlay.appendChild(host); }
+    // Start a logger session (like demographics)
+    try {
+      if (window.L && typeof L.setContext === "function") {
+        L.setContext({ participant_id: stableParticipantId(), mode_id: mid });
+      }
+      if (window.L && typeof L.newSession === "function") {
+        L.newSession(mid);
+      }
+    } catch (e) {
+      console.warn("Awareness: could not start logger session:", e);
+    }
+
+    var host = ensureHost_();
+    host.innerHTML = `
+      <div id="yn-card">
+        <div id="yn-title">Did you notice any odd looking tile while playing?</div>
+        <div id="yn-sub">Answer and continue. You can also press Y or N.</div>
+
+        <div id="yn-actions">
+          <div id="yn-yes" class="yn-btn">
+            Yes <span class="yn-kbd">Y</span>
+          </div>
+          <div id="yn-no" class="yn-btn">
+            No <span class="yn-kbd">N</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    show("", "");
+
+    function cleanup() {
       host.innerHTML = "";
+      hide();
+      document.removeEventListener("keydown", onKey);
+    }
 
-      var card = document.createElement("div"); card.id = "yn-card";
-      card.innerHTML =
-        '<div id="yn-title">Did you notice any odd looking tile while playing?</div>' +
-        '<div id="yn-sub">Answer and continue. You can also press <b>Y</b> or <b>N</b>.</div>' +
-        '<div id="yn-actions">' +
-          '<button class="yn-btn" id="yn-yes">Yes <span class="yn-kbd">Y</span></button>' +
-          '<button class="yn-btn" id="yn-no">No <span class="yn-kbd">N</span></button>' +
-        '</div>';
-      host.appendChild(card);
+    function finish(val) {
+      var yes = (val === "Yes");
 
-      show("", "");
-
-      function cleanup(){
-        try { host.remove(); } catch(_) {}
-        hide();
+      // Old StudyLogger hook (keep it)
+      try {
+        if (window.StudyLogger && typeof StudyLogger.logOddballReport === "function") {
+          StudyLogger.logOddballReport(yes);
+          console.log("Oddball awareness logged (StudyLogger):", val);
+        }
+      } catch (e) {
+        console.warn("Oddball StudyLogger logging failed:", e);
       }
 
-  
-function done(val){
-  var yes = (val === "Yes");
+      // NEW: log into Tests logger
+      try {
+        if (window.L && typeof L.logTest === "function") {
+          // mode_id = mid, item_id = "oddball_awareness"
+          L.logTest(mid, "oddball_awareness", "awareness", yes ? 1 : 0);
+          console.log("Oddball awareness logged (Tests logger):", yes ? 1 : 0);
+        }
+      } catch (e) {
+        console.warn("Awareness L.logTest failed:", e);
+      }
 
-  // 1) Keep existing StudyLogger hook
-  try {
-    if (window.StudyLogger && typeof StudyLogger.logOddballReport === "function") {
-      StudyLogger.logOddballReport(yes);
-      console.log("Oddball awareness logged:", val);
+      // NEW: export a small tests.csv for this awareness block
+      try {
+        if (window.L &&
+            typeof L.testRowsForExport === "function" &&
+            typeof L.toCSVTests === "function") {
+
+          var rows = L.testRowsForExport().filter(function (r) {
+            return r.mode_id === mid;
+          });
+
+          if (rows && rows.length) {
+            var csv = L.toCSVTests(rows);
+            csv = csvStripColumn(csv, "participant_id");
+
+            var metaObj = {
+              study_id: "study",
+              block_id: mid,
+              app_version: "v_awareness_1",
+              ts: new Date().toISOString(),
+              userAgent: navigator.userAgent
+            };
+
+            postToDrive(
+              { "tests.csv": csv, "meta.json": metaObj },
+              { session_id: "S_" + tsPrecise() + "_" + mid }
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("Drive upload (awareness) failed:", e);
+      }
+
+      cleanup();
+      resolve();
     }
-  } catch (e) {
-    console.warn("Oddball logging failed:", e);
-  }
 
-  // 2) NEW: log into the Tests logger so it can go to tests.csv
-  try {
-    if (window.L && typeof L.logTest === "function") {
-      // mode_id = block.id, test_id = "oddball_awareness"
-      L.logTest(block.id, "oddball_awareness", "awareness", yes ? 1 : 0);
+    function onKey(ev) {
+      var k = ev.key.toLowerCase();
+      if (k === "y") {
+        finish("Yes");
+      } else if (k === "n") {
+        finish("No");
+      }
     }
-  } catch (e) {
-    console.warn("Awareness L.logTest failed:", e);
-  }
 
-  cleanup();
-  resolve();
+    document.getElementById("yn-yes").onclick = function () { finish("Yes"); };
+    document.getElementById("yn-no").onclick  = function () { finish("No"); };
+
+    document.addEventListener("keydown", onKey);
+  });
 }
 
 
-
-      function onk(e){
-        if (e.key === "y" || e.key === "Y") { done("Yes"); }
-        if (e.key === "n" || e.key === "N") { done("No");  }
-      }
-      window.addEventListener("keydown", onk, true);
-
-      document.getElementById("yn-yes").onclick = function(){ done("Yes"); };
-      document.getElementById("yn-no").onclick  = function(){ done("No");  };
-    });
-  }
 
   // ================= REST =================
   function runRestBlock(cfg, block){
