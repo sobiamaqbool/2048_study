@@ -175,8 +175,6 @@ document.addEventListener("DOMContentLoaded", function () {
 "}",
 
 
-
-
     "#study-submit{margin-top:8px;width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--thBorder);background:var(--th);color:var(--thText);font:700 14px system-ui;cursor:pointer;}",
     "#study-submit:hover{background:var(--thHover);}",
 
@@ -200,6 +198,26 @@ document.addEventListener("DOMContentLoaded", function () {
     ".yn-btn:hover{background:#E8DFD6;}",
     ".yn-btn:active{transform:translateY(1px);}",
     ".yn-kbd{font:700 12px system-ui;background:#cab69e;color:#1C1917;border-radius:8px;padding:2px 6px;margin-left:6px;}",
+    /* Demographics dropdowns (Age card) */
+/* Demographics dropdowns (Age card) */
+"#yn-card select{" +
+"  width:100%;" +
+"  height:40px;" +
+"  padding:8px 10px;" +
+"  border-radius:8px;" +
+"  border:1px solid #D3C5B6;" +
+"  box-sizing:border-box;" +
+"  background:#FFFFFF;" +     // White so Android popup doesn't invert text
+"  color:#000000;" +           // Black text so it's visible in popup
+"  -webkit-appearance: menulist;" +
+"  appearance:auto;" +
+"}",
+
+"#yn-card select option{" +
+"  color:#000000 !important;" +
+"  background:#FFFFFF !important;" +
+"}",
+
 
     "#demo-submit.yn-btn{background:#FCFAF7;color:#1B1A18;width:100%;padding:12px 14px;border-radius:10px;border:1px solid #D9CBB8;font:700 14px system-ui;}",
     "#demo-submit.yn-btn:hover{background:#F2EEEA;}",
