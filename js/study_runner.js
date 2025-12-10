@@ -133,8 +133,8 @@ document.addEventListener("DOMContentLoaded", function () {
     "#study-form label{display:block;font:600 15px system-ui;margin-bottom:6px;color:var(--thText);}",
 
     /* Uniform classic fields: age + all dropdowns */
-"/* Uniform classic fields: age */" +
-"#study-form input[type=number]{" +      // ⬅ select removed here
+"/* Uniform classic fields: name + age */" +
+"#study-form input[type=number], #study-form input[type=text]{" +
 "  width:100%;" +
 "  height:40px;" +
 "  padding:8px 10px;" +
@@ -211,9 +211,14 @@ document.addEventListener("DOMContentLoaded", function () {
 "  accent-color:#F4E1C1;" +
 "}",
 "#yn-card.demo-card{" +
+"  align-items:stretch;" +
+"  width:420px;" +
+"  max-width:90%;" +
+"  padding:16px 20px;" +
 "  max-height:90vh;" +
 "  overflow:visible;" +
 "}",
+
 
 
 /* Padding around questions so they don't touch bottom */
@@ -340,7 +345,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ==== DEMOGRAPHICS (form before study) ====
-  function askDemographics() {
+  // ==== DEMOGRAPHICS (form before study) ====
+function askDemographics() {
   return new Promise(function (resolve) {
     var mid = "demographics";
 
@@ -356,75 +362,192 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const host = ensureHost_();
-    host.innerHTML = `
-      <div id="yn-card" class="demo-card">
-        <div id="yn-title">Before we start</div>
-        <div id="yn-sub">Please answer a few short questions.</div>
+    host.innerHTML = "";
 
-        <div class="q">
-          <label>Age</label>
-          <input id="demo-age" type="number" min="10" max="100" style="width:100%">
-        </div>
+    function el(tag, props, children) {
+      const n = document.createElement(tag);
+      if (props) Object.assign(n, props);
+      if (children) {
+        children.forEach(function (c) {
+          if (!c) return;
+          if (typeof c === "string") n.appendChild(document.createTextNode(c));
+          else n.appendChild(c);
+        });
+      }
+      return n;
+    }
 
-        <div class="q">
-          <label>Gender</label>
-          <div class="radio-group" id="demo-gender-group">
-            <label><input type="radio" name="demo-gender" value="female"> Female</label>
-            <label><input type="radio" name="demo-gender" value="male"> Male</label>
-            <label><input type="radio" name="demo-gender" value="other"> Other</label>
-          </div>
-        </div>
+    const card = el("div", { id: "yn-card" });
+    card.classList.add("demo-card");
 
-        <div class="q">
-          <label>Highest education level</label>
-          <div class="radio-group" id="demo-edu-group">
-            <label><input type="radio" name="demo-edu" value="school"> School / College</label>
-            <label><input type="radio" name="demo-edu" value="bachelors"> Bachelor</label>
-            <label><input type="radio" name="demo-edu" value="masters"> Master</label>
-            <label><input type="radio" name="demo-edu" value="phd"> PhD</label>
-          </div>
-        </div>
+    // title + subtitle
+    card.appendChild(el("div", { id: "yn-title" }, ["Before we start"]));
+    card.appendChild(
+      el("div", { id: "yn-sub" }, ["Please answer a few short questions."])
+    );
 
-        <div class="q">
-          <label>How often do you play video / mobile games?</label>
-          <div class="radio-group" id="demo-games-group">
-            <label><input type="radio" name="demo-games" value="never"> Almost never</label>
-            <label><input type="radio" name="demo-games" value="monthly"> A few times per month</label>
-            <label><input type="radio" name="demo-games" value="weekly"> 1–3 times per week</label>
-            <label><input type="radio" name="demo-games" value="daily"> Most days</label>
-          </div>
-        </div>
+    // Nickname
+    const qNickname = el("div", { className: "q" });
+    qNickname.appendChild(el("label", null, ["Nickname"]));
+    qNickname.appendChild(
+      el("input", {
+        id: "demo-name",
+        type: "text",
+        placeholder: "Enter your nickname",
+        style: "width:100%;",
+      })
+    );
+    card.appendChild(qNickname);
 
-        <div class="q">
-          <label>Vision</label>
-          <div class="radio-group" id="demo-vision-group">
-            <label><input type="radio" name="demo-vision" value="normal"> Normal vision</label>
-            <label><input type="radio" name="demo-vision" value="glasses_contacts"> Glasses / contacts</label>
-            <label><input type="radio" name="demo-vision" value="vision_disorder"> Known vision disorder</label>
-          </div>
-        </div>
+    // Age
+    const qAge = el("div", { className: "q" });
+    qAge.appendChild(el("label", null, ["Age"]));
+    qAge.appendChild(
+      el("input", {
+        id: "demo-age",
+        type: "number",
+        min: "10",
+        max: "100",
+        style: "width:100%;",
+      })
+    );
+    card.appendChild(qAge);
 
-        <div class="q">
-          <label>Handedness</label>
-          <div class="radio-group" id="demo-hand-group">
-            <label><input type="radio" name="demo-hand" value="right"> Right-handed</label>
-            <label><input type="radio" name="demo-hand" value="left"> Left-handed</label>
-          </div>
-        </div>
+    // Gender
+    const qGender = el("div", { className: "q" });
+    qGender.appendChild(el("label", null, ["Gender"]));
+    const gGroup = el("div", { className: "radio-group", id: "demo-gender-group" });
+    ["female", "male", "other"].forEach(function (val) {
+      const lbl = el("label", null, []);
+      const input = el("input", { type: "radio", name: "demo-gender", value: val });
+      lbl.appendChild(input);
+      lbl.appendChild(document.createTextNode(" " + val[0].toUpperCase() + val.slice(1)));
+      gGroup.appendChild(lbl);
+    });
+    qGender.appendChild(gGroup);
+    card.appendChild(qGender);
 
-        <button id="demo-submit" class="yn-btn" style="width:100%;margin-top:6px;">
-          Continue
-        </button>
+    // Education
+    const qEdu = el("div", { className: "q" });
+    qEdu.appendChild(el("label", null, ["Highest education level"]));
+    const eduGroup = el("div", { className: "radio-group", id: "demo-edu-group" });
+    [
+      ["school", "School / College"],
+      ["bachelors", "Bachelor"],
+      ["masters", "Master"],
+      ["phd", "PhD"],
+    ].forEach(function (pair) {
+      const lbl = el("label", null, []);
+      const input = el("input", {
+        type: "radio",
+        name: "demo-edu",
+        value: pair[0],
+      });
+      lbl.appendChild(input);
+      lbl.appendChild(document.createTextNode(" " + pair[1]));
+      eduGroup.appendChild(lbl);
+    });
+    qEdu.appendChild(eduGroup);
+    card.appendChild(qEdu);
 
-        <div id="demo-error" style="color:#ffb3b3;font:600 13px system-ui;text-align:center;margin-top:6px;display:none;">
-          Please answer all questions.
-        </div>
-      </div>
-    `;
+    // Games
+    const qGames = el("div", { className: "q" });
+    qGames.appendChild(
+      el("label", null, ["How often do you play video / mobile games?"])
+    );
+    const gamesGroup = el("div", {
+      className: "radio-group",
+      id: "demo-games-group",
+    });
+    [
+      ["never", "Almost never"],
+      ["monthly", "A few times per month"],
+      ["weekly", "1–3 times per week"],
+      ["daily", "Most days"],
+    ].forEach(function (pair) {
+      const lbl = el("label", null, []);
+      const input = el("input", {
+        type: "radio",
+        name: "demo-games",
+        value: pair[0],
+      });
+      lbl.appendChild(input);
+      lbl.appendChild(document.createTextNode(" " + pair[1]));
+      gamesGroup.appendChild(lbl);
+    });
+    qGames.appendChild(gamesGroup);
+    card.appendChild(qGames);
 
+    // Vision
+    const qVision = el("div", { className: "q" });
+    qVision.appendChild(el("label", null, ["Vision"]));
+    const visionGroup = el("div", {
+      className: "radio-group",
+      id: "demo-vision-group",
+    });
+    [
+      ["normal", "Normal vision"],
+      ["glasses_contacts", "Glasses / contacts"],
+      ["vision_disorder", "Known vision disorder"],
+    ].forEach(function (pair) {
+      const lbl = el("label", null, []);
+      const input = el("input", {
+        type: "radio",
+        name: "demo-vision",
+        value: pair[0],
+      });
+      lbl.appendChild(input);
+      lbl.appendChild(document.createTextNode(" " + pair[1]));
+      visionGroup.appendChild(lbl);
+    });
+    qVision.appendChild(visionGroup);
+    card.appendChild(qVision);
+
+    // Handedness
+    const qHand = el("div", { className: "q" });
+    qHand.appendChild(el("label", null, ["Handedness"]));
+    const handGroup = el("div", {
+      className: "radio-group",
+      id: "demo-hand-group",
+    });
+    [
+      ["right", "Right-handed"],
+      ["left", "Left-handed"],
+    ].forEach(function (pair) {
+      const lbl = el("label", null, []);
+      const input = el("input", {
+        type: "radio",
+        name: "demo-hand",
+        value: pair[0],
+      });
+      lbl.appendChild(input);
+      lbl.appendChild(document.createTextNode(" " + pair[1]));
+      handGroup.appendChild(lbl);
+    });
+    qHand.appendChild(handGroup);
+    card.appendChild(qHand);
+
+    // Button
+    const btn = el("button", {
+      id: "demo-submit",
+      className: "yn-btn",
+      style: "width:100%;margin-top:6px;",
+    }, ["Continue"]);
+    card.appendChild(btn);
+
+    // Error
+    const err = el("div", {
+      id: "demo-error",
+      style:
+        "color:#ffb3b3;font:600 13px system-ui;text-align:center;margin-top:6px;display:none;",
+    }, ["Please answer all questions."]);
+    card.appendChild(err);
+
+    host.appendChild(card);
     show("", "");
 
-    document.getElementById("demo-submit").onclick = function () {
+    btn.onclick = function () {
+      const name = document.getElementById("demo-name").value.trim();
       const age = document.getElementById("demo-age").value;
 
       const gEl = document.querySelector('input[name="demo-gender"]:checked');
@@ -434,31 +557,33 @@ document.addEventListener("DOMContentLoaded", function () {
       const hEl = document.querySelector('input[name="demo-hand"]:checked');
 
       const gender = gEl && gEl.value;
-      const edu    = eEl && eEl.value;
-      const games  = gaEl && gaEl.value;
+      const edu = eEl && eEl.value;
+      const games = gaEl && gaEl.value;
       const vision = vEl && vEl.value;
-      const hand   = hEl && hEl.value;
+      const hand = hEl && hEl.value;
 
-      if (!age || !gender || !edu || !games || !vision || !hand) {
-        const e = document.getElementById("demo-error");
-        e.style.display = "block";
+      if (!name || !age || !gender || !edu || !games || !vision || !hand) {
+        err.style.display = "block";
         return;
       }
 
       try {
         if (L && typeof L.logTest === "function") {
-          L.logTest(mid, "age",        "profile", age);
-          L.logTest(mid, "gender",     "profile", gender);
-          L.logTest(mid, "education",  "profile", edu);
-          L.logTest(mid, "games",      "profile", games);
-          L.logTest(mid, "vision",     "profile", vision);
+          L.logTest(mid, "nickname", "profile", name);
+          L.logTest(mid, "age", "profile", age);
+          L.logTest(mid, "gender", "profile", gender);
+          L.logTest(mid, "education", "profile", edu);
+          L.logTest(mid, "games", "profile", games);
+          L.logTest(mid, "vision", "profile", vision);
           L.logTest(mid, "handedness", "profile", hand);
         }
+        localStorage.setItem("demographics_done", "1");
+        localStorage.setItem("participant_name", name);
       } catch (e) {
         console.warn("Demographics logging failed:", e);
       }
 
-      // export demographics to Drive
+      // Drive export stays same as before
       try {
         if (L && typeof L.testRowsForExport === "function" &&
             typeof L.toCSVTests === "function") {
@@ -490,12 +615,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       hide();
-      try {
-        localStorage.setItem("demographics_done", "1");
-      } catch (e) {
-        console.warn("could not set demographics_done", e);
-      }
-
       host.innerHTML = "";
       resolve();
     };
@@ -803,10 +922,9 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
 // Awareness card, saves its own tiny tests.csv via postToDrive
+// Awareness card – just stores answer, no Drive export
 function askYesNoAwareness(block) {
   return new Promise(function (resolve) {
-    var mid = block.id + "_awareness";   // e.g. "medium_mode_awareness"
-
     var host = ensureHost_();
     host.innerHTML = `
       <div id="yn-card">
@@ -836,7 +954,7 @@ function askYesNoAwareness(block) {
       var yes = (val === "Yes");
       console.log("[AWARENESS] answer:", val, "block:", block.id);
 
-      // keep old StudyLogger hook
+      // keep StudyLogger hook
       try {
         if (window.StudyLogger && typeof StudyLogger.logOddballReport === "function") {
           StudyLogger.logOddballReport(yes);
@@ -845,36 +963,17 @@ function askYesNoAwareness(block) {
         console.warn("[AWARENESS] StudyLogger failed:", e);
       }
 
-      // ===== DIRECT CSV + postToDrive (no L used) =====
+      // 🔹 store for later, so tests export can use it
       try {
-        var now = new Date().toISOString();
-        var resp = yes ? 1 : 0;
+        var key =
+          block.id === "easy_mode"   ? "awareness_easy"   :
+          block.id === "medium_mode" ? "awareness_medium" :
+          "awareness_" + block.id;
 
-        // simple tests-style CSV
-        var csv =
-          "timestamp,mode_id,item_id,item_type,response\n" +
-          now + "," +
-          mid + "," +
-          "oddball_awareness," +
-          "awareness," +
-          resp + "\n";
-
-        var metaObj = {
-          study_id: "study",
-          block_id: mid,
-          app_version: "v4002_awareness",
-          ts: now,
-          userAgent: navigator.userAgent
-        };
-
-        postToDrive(
-          { "tests.csv": csv, "meta.json": metaObj },
-          { session_id: "S_" + tsPrecise() + "_" + mid }
-        );
-
-        console.log("[AWARENESS] CSV posted to Drive");
+        localStorage.setItem(key, yes ? "1" : "0");
+        console.log("[AWARENESS] stored in localStorage key:", key);
       } catch (e) {
-        console.warn("[AWARENESS] postToDrive failed:", e);
+        console.warn("[AWARENESS] localStorage failed:", e);
       }
 
       cleanup();
@@ -893,6 +992,7 @@ function askYesNoAwareness(block) {
     document.addEventListener("keydown", onKey);
   });
 }
+
 
 
 
