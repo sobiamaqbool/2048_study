@@ -1279,7 +1279,6 @@ function runPlayBlock(cfg, block){
   });
 }
 
-
   // ================= TESTS =================
   function runTestsBlock(cfg, block){
     return new Promise(function(resolve){
