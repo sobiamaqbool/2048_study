@@ -754,16 +754,15 @@ hr {
     margin-top: 30px !important; } }
   
 
-/* =============================
-   MOBILE FIX – SCALE WHOLE BOARD
-   ============================= */
+    
 @media (max-width: 600px) {
   .game-container {
     transform-origin: top center;
-    transform: scale(0.58);   /* <-- adjust this number */
+    transform: scale(0.6);  /* adjust 0.55–0.7 as you like */
     margin: 0 auto;
   }
 }
+
 
  
 /* ============================
