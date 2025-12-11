@@ -952,18 +952,30 @@ function askYesNoAwareness(block) {
 
     function finish(val) {
       var yes = (val === "Yes");
+      var textAns = yes ? "yes" : "no";
       console.log("[AWARENESS] answer:", val, "block:", block.id);
 
-      // keep StudyLogger hook
+      // 1) main StudyLogger hook + a proper test row
       try {
-        if (window.StudyLogger && typeof StudyLogger.logOddballReport === "function") {
-          StudyLogger.logOddballReport(yes);
+        if (window.StudyLogger) {
+          if (typeof StudyLogger.logOddballReport === "function") {
+            StudyLogger.logOddballReport(yes);
+          }
+          if (typeof StudyLogger.logTest === "function") {
+            // this goes into StudyLogger.testRowsForExport()
+            StudyLogger.logTest(
+              block.id,
+              "awareness_oddball",
+              "awareness",
+              textAns
+            );
+          }
         }
       } catch (e) {
         console.warn("[AWARENESS] StudyLogger failed:", e);
       }
 
-      // 🔹 store for later, so tests export can use it
+      // 2) store also in localStorage
       try {
         var key =
           block.id === "easy_mode"   ? "awareness_easy"   :
@@ -974,6 +986,16 @@ function askYesNoAwareness(block) {
         console.log("[AWARENESS] stored in localStorage key:", key);
       } catch (e) {
         console.warn("[AWARENESS] localStorage failed:", e);
+      }
+
+      // 3) make it available for the later tests block (carry-over)
+      try {
+        window.__pendingAwareness = {
+          block_id: block.id,
+          response: textAns
+        };
+      } catch (e) {
+        console.warn("[AWARENESS] could not set __pendingAwareness:", e);
       }
 
       cleanup();
