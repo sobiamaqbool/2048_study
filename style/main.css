@@ -754,14 +754,40 @@ hr {
     margin-top: 30px !important; } }
   
 
-/* ===== MOBILE SCALE: shrink board but keep alignment ===== */
+/* ===== PHONE FIX: use the same geometry as desktop ===== */
 @media (max-width: 600px) {
+
   .game-container {
-    transform-origin: top center;
-    transform: scale(0.7);   /* try 0.7; change to 0.6 or 0.8 if needed */
-    margin: 0 auto;
+    width: 500px !important;
+    height: 500px !important;
+    padding: 15px !important;
+    margin: 0 auto !important;
+    transform: none !important;
+  }
+
+  .grid-container,
+  .tile-container {
+    width: 500px !important;
+    height: 500px !important;
+    top: 0;
+    left: 0;
+  }
+
+  .grid-cell {
+    width: 106.25px !important;
+    height: 106.25px !important;
+    margin-right: 15px !important;
+    margin-bottom: 15px !important;
+  }
+
+  .tile,
+  .tile .tile-inner {
+    width: 107px !important;
+    height: 107px !important;
+    line-height: 107px !important;
   }
 }
+
 
  
 /* ============================
