@@ -471,7 +471,7 @@ hr {
 /* === PHONE: only visually shrink the board === */
 @media screen and (max-width: 520px) {
   .game-container {
-    transform: scale(0.7);
+    transform: scale(0.6);
     transform-origin: top left;
   }
 }
