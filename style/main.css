@@ -469,23 +469,7 @@ hr {
 }
 
 /* ===== MOBILE SCALE – shrink whole board together ===== */
-@media (max-width: 600px) {
 
-  /* let the page be full width */
-  .container{
-    width: 100% !important;
-    margin: 0 auto !important;
-  }
-
-  /* center the board even though its layout width is 500px */
-  .game-container{
-    position: relative;
-    left: 50%;
-    transform-origin: top left;
-    transform: translateX(-50%) scale(0.6);
-    margin: 0;
-  }
-}
 
 
 /* ============================
