@@ -469,12 +469,15 @@ hr {
 }
 
 /* === PHONE: only visually shrink the board === */
-@media screen and (max-width: 520px) {
-  .game-container {
-    transform: scale(0.6);
+@media (max-width: 768px) {
+  .game-container{
+    --board: 500;
+    --fit: calc((100vw - 40px) / (var(--board) * 1px));
+    transform: scale(clamp(0.60, var(--fit), 0.90));
     transform-origin: top left;
   }
 }
+
 
 
 /* ============================
