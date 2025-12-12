@@ -469,6 +469,48 @@ hr {
 }
 
 /* ===== MOBILE SCALE – shrink whole board together ===== */
+/* ===== FORCE MOBILE LAYOUT (put at END of file) ===== */
+@media screen and (max-width: 768px) {
+
+  html, body {
+    overflow-x: hidden;
+  }
+
+  .container{
+    width: 280px !important;
+    max-width: 280px !important;
+    margin: 0 auto !important;
+    padding: 0 20px !important;
+    box-sizing: border-box;
+  }
+
+  .game-container{
+    width: 280px !important;
+    height: 280px !important;
+    padding: 10px !important;
+    margin: 17px auto 0 !important;
+    box-sizing: border-box;
+  }
+
+  .grid-cell{
+    width: 57.5px !important;
+    height: 57.5px !important;
+    margin-right: 10px !important;
+  }
+
+  .tile, .tile .tile-inner{
+    width: 57.5px !important;
+    height: 57.5px !important;
+    line-height: 57.5px !important;
+  }
+
+  /* ensure tile layer does not exceed board */
+  .grid-container, .tile-container{
+    width: 280px !important;
+    height: 280px !important;
+    overflow: hidden;
+  }
+}
 
 
 
