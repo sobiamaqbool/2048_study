@@ -470,12 +470,23 @@ hr {
 
 /* ===== MOBILE SCALE – shrink whole board together ===== */
 @media (max-width: 600px) {
-  .game-container {
-    transform-origin: top center;
-    transform: scale(0.6); /* tweak 0.55–0.7 if needed */
-    margin: 0 auto;
+
+  /* let the page be full width */
+  .container{
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  /* center the board even though its layout width is 500px */
+  .game-container{
+    position: relative;
+    left: 50%;
+    transform-origin: top left;
+    transform: translateX(-50%) scale(0.6);
+    margin: 0;
   }
 }
+
 
 /* ============================
    ODDBALL TILE
