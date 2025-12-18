@@ -478,6 +478,34 @@ function askDemographics() {
     qGames.appendChild(gamesGroup);
     card.appendChild(qGames);
 
+    // Played 2048 before?
+const qPlayed = el("div", { className: "q" });
+qPlayed.appendChild(el("label", null, ["Have you ever played 2048 game before?"]));
+
+const playedGroup = el("div", {
+  className: "radio-group",
+  id: "demo-played2048-group",
+});
+
+[
+  ["yes", "Yes"],
+  ["no", "No"],
+].forEach(function (pair) {
+  const lbl = el("label", null, []);
+  const input = el("input", {
+    type: "radio",
+    name: "demo-played2048",
+    value: pair[0],
+  });
+  lbl.appendChild(input);
+  lbl.appendChild(document.createTextNode(" " + pair[1]));
+  playedGroup.appendChild(lbl);
+});
+
+qPlayed.appendChild(playedGroup);
+card.appendChild(qPlayed);
+
+
     // Vision
     const qVision = el("div", { className: "q" });
     qVision.appendChild(el("label", null, ["Vision"]));
@@ -555,6 +583,9 @@ function askDemographics() {
       const gaEl = document.querySelector('input[name="demo-games"]:checked');
       const vEl = document.querySelector('input[name="demo-vision"]:checked');
       const hEl = document.querySelector('input[name="demo-hand"]:checked');
+      const pEl  = document.querySelector('input[name="demo-played2048"]:checked');
+      const played2048 = pEl && pEl.value;
+
 
       const gender = gEl && gEl.value;
       const edu = eEl && eEl.value;
@@ -562,10 +593,11 @@ function askDemographics() {
       const vision = vEl && vEl.value;
       const hand = hEl && hEl.value;
 
-      if (!name || !age || !gender || !edu || !games || !vision || !hand) {
+      if (!name || !age || !gender || !edu || !games || !played2048 || !vision || !hand) {
         err.style.display = "block";
         return;
       }
+
 
       try {
         if (L && typeof L.logTest === "function") {
@@ -574,6 +606,7 @@ function askDemographics() {
           L.logTest(mid, "gender", "profile", gender);
           L.logTest(mid, "education", "profile", edu);
           L.logTest(mid, "games", "profile", games);
+          L.logTest(mid, "played_2048_before", "profile", played2048);
           L.logTest(mid, "vision", "profile", vision);
           L.logTest(mid, "handedness", "profile", hand);
         }
