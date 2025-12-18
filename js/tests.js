@@ -193,8 +193,8 @@ window.TestsUI = (() => {
 
       const div = card.querySelector("#sam-q");
       const ratings = {};
-      div.appendChild(makeQuestion("overall_feeling","How did you feel overall while playing? (Bad → Good)",ratings));
-      div.appendChild(makeQuestion("alertness","How alert did you feel while playing? (Sleepy → Alert)",ratings));
+      div.appendChild(makeQuestion("overall_feeling","How did you feel overall while playing? (1 = Bad , 9 = Good)",ratings));
+      div.appendChild(makeQuestion("alertness","How alert did you feel while playing? (1 = Sleepy , 9 = Alert)",ratings));
 
       const btn = document.createElement("button");
       btn.textContent = "Continue";
