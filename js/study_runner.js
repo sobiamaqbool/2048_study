@@ -383,6 +383,12 @@ function askDemographics() {
     const card = el("div", { id: "yn-card" });
     card.classList.add("demo-card");
 
+    card.style.maxHeight = "90vh";
+    card.style.overflowY = "auto";
+    card.style.overflowX = "hidden";
+    card.style.boxSizing = "border-box";
+
+
     // title + subtitle
     card.appendChild(el("div", { id: "yn-title" }, ["Before we start"]));
     card.appendChild(
