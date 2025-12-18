@@ -216,8 +216,11 @@ document.addEventListener("DOMContentLoaded", function () {
 "  max-width:90%;" +
 "  padding:16px 20px;" +
 "  max-height:90vh;" +
-"  overflow:visible;" +
+"  overflow-y:auto;" +
+"  overflow-x:hidden;" +
+"  box-sizing:border-box;" +
 "}",
+
 
 
 
